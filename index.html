@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light only">
+<title>BolgStats</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #f5f0e8;
+    color: #000;
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+    min-height: 100vh;
+    color-scheme: light only;
+  }
+
+  /* ── HEADER ── */
+  header {
+    border-bottom: 3px solid #000;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #f5f0e8;
+  }
+
+  .header-left {
+    font-size: 18px;
+    font-weight: 900;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .header-nav {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+  }
+
+  .nav-link {
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-decoration: none;
+    color: #000;
+  }
+
+  .nav-link.active {
+    color: #e05a1e;
+    border-bottom: 2px solid #e05a1e;
+    padding-bottom: 1px;
+  }
+
+  /* ── MAIN ── */
+  .main {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+  }
+
+  .headline {
+    font-size: clamp(42px, 10vw, 64px);
+    font-weight: 900;
+    text-transform: uppercase;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+  }
+
+  .subhead {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 14px;
+    color: #555;
+    margin-bottom: 36px;
+    line-height: 1.5;
+  }
+
+  /* ── SEARCH ── */
+  .search-input {
+    width: 100%;
+    padding: 16px 18px;
+    font-size: 16px;
+    font-family: 'Courier New', Courier, monospace;
+    border: 3px solid #000;
+    background: #fff;
+    color: #000;
+    outline: none;
+    box-shadow: 5px 5px 0 #000;
+    margin-bottom: 12px;
+    transition: box-shadow 0.15s;
+  }
+
+  .search-input:focus {
+    box-shadow: 7px 7px 0 #000;
+  }
+
+  .search-input::placeholder { color: #999; }
+
+  .ask-btn {
+    width: 100%;
+    padding: 16px;
+    background: #e05a1e;
+    color: #fff;
+    border: 3px solid #000;
+    font-size: 15px;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    box-shadow: 5px 5px 0 #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    transition: box-shadow 0.15s, transform 0.15s;
+  }
+
+  .ask-btn:hover {
+    box-shadow: 7px 7px 0 #000;
+    transform: translate(-1px, -1px);
+  }
+
+  .ask-btn:active {
+    box-shadow: 2px 2px 0 #000;
+    transform: translate(2px, 2px);
+  }
+
+  .ask-btn:disabled {
+    background: #aaa;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: 5px 5px 0 #000;
+  }
+
+  /* ── RESULT ── */
+  .result-box {
+    margin-top: 24px;
+    background: #111;
+    border: 3px solid #000;
+    box-shadow: 5px 5px 0 #000;
+    padding: 24px;
+    display: none;
+  }
+
+  .result-box.visible { display: block; }
+
+  .result-label {
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #e05a1e;
+    margin-bottom: 12px;
+  }
+
+  .result-divider {
+    height: 1px;
+    background: #e05a1e;
+    margin-bottom: 16px;
+  }
+
+  .result-text {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 14px;
+    line-height: 1.7;
+    color: #f0ece4;
+    white-space: pre-wrap;
+  }
+
+  /* ── LOADING ── */
+  .loading {
+    margin-top: 20px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 13px;
+    color: #777;
+    display: none;
+    align-items: center;
+    gap: 10px;
+  }
+  .loading.visible { display: flex; }
+
+  .spinner {
+    width: 14px; height: 14px;
+    border: 2px solid #ddd;
+    border-top-color: #e05a1e;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── BOOT ── */
+  #boot {
+    position: fixed;
+    inset: 0;
+    background: #f5f0e8;
+    z-index: 999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    transition: opacity 0.4s;
+  }
+  #boot.out { opacity: 0; pointer-events: none; }
+
+  .boot-title {
+    font-size: 32px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .boot-title span { color: #e05a1e; }
+  .boot-msg {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 13px;
+    color: #777;
+  }
+  .boot-track { width: 200px; height: 3px; background: #ddd; }
+  .boot-fill { height: 100%; background: #e05a1e; width: 0%; transition: width 0.35s ease; }
+
+  /* ── ERROR ── */
+  .error {
+    margin-top: 16px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 13px;
+    color: #c00;
+    display: none;
+  }
+  .error.visible { display: block; }
+</style>
+</head>
+<body>
+
+<div id="boot">
+  <div class="boot-title">Bolg<span>Stats</span></div>
+  <div class="boot-msg" id="bootMsg">Loading archive…</div>
+  <div class="boot-track"><div class="boot-fill" id="bootFill"></div></div>
+</div>
+
+<header>
+  <div class="header-left">The Bolg Stats</div>
+  <nav class="header-nav">
+    <a class="nav-link active" href="#">Search</a>
+    <a class="nav-link" href="https://thebolg.com" target="_blank">Archive</a>
+  </nav>
+</header>
+
+<div class="main">
+  <div class="headline">Query the<br>Archive.</div>
+  <div class="subhead">Ask anything about our collective music opinions.</div>
+
+  <input
+    class="search-input"
+    id="q"
+    type="text"
+    placeholder="Who hates pop music the most?"
+    autocomplete="off"
+    onkeydown="if(event.key==='Enter') ask()"
+  >
+
+  <button class="ask-btn" id="askBtn" onclick="ask()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+    Ask
+  </button>
+
+  <div class="loading" id="loading"><div class="spinner"></div> Searching the archive…</div>
+  <div class="error" id="errBox"></div>
+
+  <div class="result-box" id="resultBox">
+    <div class="result-label">Claude Says:</div>
+    <div class="result-divider"></div>
+    <div class="result-text" id="resultText"></div>
+  </div>
+</div>
+
+<script>
+const BLOG = 'thebolg';
+const KEY  = 'BRqwhfZWyoRss6ax8Gbb4UrijPqO1aedOzYsVQfpIm23h9nmvU';
+const CKEY = 'thebolg_v4';
+const TTL  = 30 * 60 * 1000;
+
+let ALL = [];
+
+async function init() {
+  const cached = readCache();
+  if (cached) {
+    ALL = cached;
+    bMsg(`${ALL.length} reviews ready.`, 100);
+    await sleep(300);
+    return done();
+  }
+
+  bMsg('Connecting to Tumblr…', 5);
+  let posts = [];
+  try { posts = await fetchPosts(); }
+  catch(e) { showErr(`Tumblr error: ${e.message}`); return done(); }
+
+  bMsg(`Parsing ${posts.length} posts…`, 35);
+  ALL = await parsePosts(posts);
+  writeCache(ALL);
+  bMsg(`${ALL.length} reviews indexed.`, 100);
+  await sleep(300);
+  done();
+}
+
+async function fetchPosts() {
+  const posts = []; let offset = 0;
+  while (true) {
+    const r = await fetch(`/api/tumblr?offset=${offset}`);
+    if (!r.ok) {
+      const b = await r.json().catch(()=>({}));
+      throw new Error(`HTTP ${r.status} — ${JSON.stringify(b)}`);
+    }
+    const j = await r.json();
+    const b = j.response?.posts ?? [];
+    posts.push(...b);
+    bMsg(`Fetched ${posts.length} posts…`, 10 + Math.min(22, posts.length * 0.08));
+    if (b.length < 50 || offset >= 500) break;
+    offset += 50;
+  }
+  return posts;
+}
+
+async function parsePosts(posts) {
+  const out = []; const BS = 8;
+  for (let i = 0; i < posts.length; i += BS) {
+    bMsg(`Parsing ${i+1}–${Math.min(i+BS,posts.length)} of ${posts.length}…`,
+      35 + Math.round(i/posts.length * 58));
+    out.push(...await parseBatch(posts.slice(i, i+BS)));
+  }
+  return out;
+}
+
+async function parseBatch(posts) {
+  const block = posts.map((p,i) => {
+    const text = strip(p.body||p.caption||p.summary||'');
+    return `POST ${i+1} [date:${(p.date||'').slice(0,10)} tags:${(p.tags||[]).join(', ')}]\n${text.slice(0,700)}`;
+  }).join('\n\n---\n\n');
+
+  const prompt = `Extract music reviews from these Tumblr posts. Each post has a bold album/artist title then paragraphs like "7.5 - review sentence -reviewer". Reviewers include b, Jt, chres, Tom, Mike, Lola, Aaron, Tyler, Tim, Matt, Lisa and others.
+
+Return a raw JSON array (no markdown). Each item:
+- index (1-based)
+- album (string or null)
+- artist (string or null)
+- reviews: array of { score (number or null), reviewer (string or null), text (string) }
+- genre (Pop/Rock/Hip-Hop/Electronic/Indie/Jazz/Folk/R&B/Punk/Metal/Alt-Rock/Post-Punk/Dance/Experimental/Country/Classical/Other)
+- date
+
+Skip non-music posts.
+
+${block}`;
+
+  try {
+    const r = await fetch('/api/ask', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ model:'gemini', max_tokens:2000,
+        messages:[{role:'user',content:prompt}] })
+    });
+    const d = await r.json();
+    const txt = (d.content||[]).map(c=>c.text||'').join('');
+    const arr = JSON.parse(txt.replace(/```json|```/g,'').trim());
+    const out = [];
+    arr.forEach(p => {
+      (p.reviews||[]).forEach(rv => {
+        if (!rv.text || rv.text.length < 4) return;
+        out.push({
+          album:    p.album    || 'Unknown Album',
+          artist:   p.artist   || 'Unknown Artist',
+          score:    typeof rv.score === 'number' ? rv.score : null,
+          reviewer: rv.reviewer|| 'unknown',
+          text:     rv.text,
+          genre:    p.genre    || 'Other',
+          date:     p.date     || '',
+          url:      posts[(p.index||1)-1]?.post_url || ''
+        });
+      });
+    });
+    return out;
+  } catch(e) { console.warn('parse err', e); return []; }
+}
+
+async function ask() {
+  const q = document.getElementById('q').value.trim();
+  if (!q) return;
+
+  const btn  = document.getElementById('askBtn');
+  const load = document.getElementById('loading');
+  const box  = document.getElementById('resultBox');
+  const txt  = document.getElementById('resultText');
+
+  btn.disabled = true;
+  load.classList.add('visible');
+  box.classList.remove('visible');
+
+  const ctx = ALL.slice(0,200).map(r =>
+    `[${r.score??'?'}/10 · "${r.album}" by ${r.artist} · ${r.reviewer} · ${r.genre} · ${r.date}] "${r.text}"`
+  ).join('\n');
+
+  try {
+    const res = await fetch('/api/ask', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model: 'gemini',
+        max_tokens: 800,
+        system: `You are BolgStats, an analyst for TheBolg — a music blog where friends post short album reviews with scores out of 10. Reviewers include b, Jt, chres, Tom, Mike, Lola, Aaron, Tyler, Tim, Matt, Lisa and others. Answer questions directly, referencing real reviews and scores. Be concise and a little witty.\n\nArchive (${ALL.length} reviews):\n\n${ctx}`,
+        messages: [{ role:'user', content:q }]
+      })
+    });
+    const d = await res.json();
+    const answer = (d.content||[]).map(c=>c.text||'').join('') || 'No answer found.';
+    txt.textContent = answer;
+    box.classList.add('visible');
+  } catch(e) {
+    txt.textContent = 'Something went wrong — try again.';
+    box.classList.add('visible');
+  }
+
+  btn.disabled = false;
+  load.classList.remove('visible');
+}
+
+function writeCache(r) { try { sessionStorage.setItem(CKEY, JSON.stringify({ts:Date.now(),r})); } catch{} }
+function readCache() {
+  try {
+    const {ts,r} = JSON.parse(sessionStorage.getItem(CKEY)||'null');
+    return Date.now()-ts > TTL ? null : r;
+  } catch { return null; }
+}
+
+function bMsg(m,p) { document.getElementById('bootMsg').textContent=m; document.getElementById('bootFill').style.width=p+'%'; }
+function done() { const b=document.getElementById('boot'); b.classList.add('out'); setTimeout(()=>b.style.display='none',400); }
+function showErr(m) { const e=document.getElementById('errBox'); e.textContent=m; e.classList.add('visible'); }
+function strip(h) { return h.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim(); }
+function sleep(ms) { return new Promise(r=>setTimeout(r,ms)); }
+
+init();
+</script>
+</body>
+</html>
