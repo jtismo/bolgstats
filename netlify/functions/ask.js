@@ -17,7 +17,7 @@ export default async (req) => {
       : messages[0].content;
 
     // Truncate to avoid timeouts
-    const truncated = prompt.slice(0, 8000);
+    const truncated = prompt.slice(0, 3000);
 
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
