@@ -277,6 +277,7 @@ const PLACEHOLDERS = [
 ];
 
 let placeholderIndex = Math.floor(Math.random() * PLACEHOLDERS.length);
+let jokeInterval = null;
 
 function rotatePlaceholder() {
   placeholderIndex = (placeholderIndex + 1) % PLACEHOLDERS.length;
@@ -303,47 +304,70 @@ async function init() {
   const cached = readCache();
   if (cached) {
     POSTS = cached;
-    showBootJoke();
-    bMsg(`${POSTS.length} posts loaded.`, 100);
-    await sleep(1200);
+    startJokeCycle();
+    bMsg(`${POSTS.length} posts loaded. Here's what you're in for…`, 100);
+    await sleep(2800);
+    stopJokeCycle();
     return done();
   }
 
-  bMsg('Fetching archive…', 10);
+  bMsg('Loading archive…', 10);
   try {
     POSTS = await fetchPosts();
     writeCache(POSTS);
-    showBootJoke();
-    bMsg(`${POSTS.length} posts loaded.`, 100);
-    await sleep(1200);
+    startJokeCycle();
+    bMsg('Archive loaded. Enjoy these while you wait…', 100);
+    await sleep(2800);
+    stopJokeCycle();
   } catch(e) {
     showErr(`Could not load archive: ${e.message}`);
   }
   done();
 }
 
-function showBootJoke() {
-  // Pick a random post snippet as a "joke"
+function startJokeCycle() {
   const candidates = POSTS.filter(p => {
     const t = strip(p.body || p.caption || '');
-    return t.length > 40 && t.length < 300;
+    return t.length > 40 && t.length < 280;
   });
   if (!candidates.length) return;
-  const pick = candidates[Math.floor(Math.random() * candidates.length)];
-  const text = strip(pick.body || pick.caption || '').slice(0, 200);
-  document.getElementById('bootJokeText').textContent = `"${text}"`;
-  document.getElementById('bootJoke').style.display = 'block';
+
+  function showNext() {
+    const pick = candidates[Math.floor(Math.random() * candidates.length)];
+    const text = strip(pick.body || pick.caption || '').slice(0, 240);
+    document.getElementById('bootJokeText').textContent = `"${text}"`;
+    document.getElementById('bootJoke').style.display = 'block';
+  }
+
+  showNext();
+  jokeInterval = setInterval(showNext, 2800);
+}
+
+function stopJokeCycle() {
+  if (jokeInterval) { clearInterval(jokeInterval); jokeInterval = null; }
 }
 
 async function fetchPosts() {
   const posts = []; let offset = 0;
+  const loadingLines = [
+    'Raiding the crates…',
+    'Consulting the reviews…',
+    'Waking up the bolg…',
+    'Counting the 8s…',
+    'Finding out who hates pop…',
+    'Sorting through the takes…',
+    'Asking the archive…',
+  ];
+  let lineIdx = 0;
+
   while (true) {
+    bMsg(loadingLines[lineIdx % loadingLines.length], 10 + Math.min(70, posts.length * 0.15));
+    lineIdx++;
     const r = await fetch(`/api/tumblr?offset=${offset}`);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const j = await r.json();
     const b = j.response?.posts ?? [];
     posts.push(...b);
-    bMsg(`Fetched ${posts.length} posts…`, 10 + Math.min(80, posts.length * 0.15));
     if (b.length < 50 || offset >= 500) break;
     offset += 50;
   }
@@ -355,12 +379,8 @@ async function ask() {
   const q = document.getElementById('q').value.trim();
   if (!POSTS.length) return;
 
-  // If empty just rotate placeholder and focus
-  if (!q) {
-    rotatePlaceholder();
-    document.getElementById('q').focus();
-    return;
-  }
+  // If empty, use the placeholder as the question
+  const question = q || document.getElementById('q').placeholder;
 
   const btn  = document.getElementById('askBtn');
   const load = document.getElementById('loading');
@@ -378,7 +398,7 @@ async function ask() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        question: q,
+        question,
         posts: POSTS,
         reviewerVoice: currentReviewer.voice,
         reviewerName: currentReviewer.name
