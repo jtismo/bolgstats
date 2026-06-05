@@ -18,23 +18,24 @@ export default async (req) => {
       return `[${(p.date||'').slice(0,10)}] ${text}`;
     }).join('\n\n');
 
-    const prompt = `You are BolgStats, analyst for TheBolg — a music blog where friends post short album reviews with scores out of 10. Posts are formatted like "7.5 - review sentence -reviewer". Reviewers include b, Jt, chres, Tom, Mike, Lola, Aaron, Tyler, Tim, Matt, Lisa and others. Answer concisely and wittily, referencing real scores and reviews.\n\nPOSTS:\n${context}\n\nQUESTION: ${question}`;
-
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { maxOutputTokens: 400 }
-        })
-      }
-    );
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 400,
+        system: `You are BolgStats, analyst for TheBolg — a music blog where friends post short album reviews with scores out of 10. Posts are formatted like "7.5 - review sentence -reviewer". Reviewers include b, Jt, chres, Tom, Mike, Lola, Aaron, Tyler, Tim, Matt, Lisa and others. Answer concisely and wittily, referencing real scores and reviews.`,
+        messages: [{ role: 'user', content: `POSTS:\n${context}\n\nQUESTION: ${question}` }]
+      })
+    });
 
     const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text
-      || `Gemini error: ${JSON.stringify(data).slice(0, 200)}`;
+    const text = data.content?.[0]?.text
+      || `Error: ${JSON.stringify(data).slice(0, 200)}`;
 
     return new Response(JSON.stringify({ answer: text }), {
       status: 200,
