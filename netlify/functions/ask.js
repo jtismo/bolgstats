@@ -12,7 +12,7 @@ export default async (req) => {
   try {
     const { question, posts } = await req.json();
 
-    const context = posts.slice(0, 60).map(p => {
+    const context = posts.slice(0, 30).map(p => {
       const text = (p.body || p.caption || p.summary || '')
         .replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 400);
       return `[${(p.date||'').slice(0,10)}] ${text}`;
