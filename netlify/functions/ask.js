@@ -10,13 +10,11 @@ export default async (req) => {
   }
 
   try {
-    const body = await req.json();
-    const { system, messages } = body;
+    const { system, messages } = await req.json();
     const prompt = system
       ? `${system}\n\n${messages[0].content}`
       : messages[0].content;
 
-    // Truncate to avoid timeouts
     const truncated = prompt.slice(0, 3000);
 
     const response = await fetch(
@@ -33,15 +31,15 @@ export default async (req) => {
 
     const data = await response.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text
-      || `Gemini error: ${JSON.stringify(data).slice(0, 300)}`;
+      || `Gemini error: ${JSON.stringify(data).slice(0, 200)}`;
 
     return new Response(JSON.stringify({ content: [{ type: 'text', text }] }), {
       status: 200,
       headers: { ...cors, 'Content-Type': 'application/json' }
     });
   } catch(err) {
-    return new Response(JSON.stringify({ 
-      content: [{ type: 'text', text: `Function error: ${err.message}` }]
+    return new Response(JSON.stringify({
+      content: [{ type: 'text', text: `Error: ${err.message}` }]
     }), {
       status: 200,
       headers: { ...cors, 'Content-Type': 'application/json' }
