@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light only">
+<title>BolgStats Audit</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #f5f0e8; font-family: 'Courier New', monospace; font-size: 13px; color: #000; padding: 20px; }
+  h1 { font-size: 24px; font-weight: 900; text-transform: uppercase; margin-bottom: 4px; }
+  h1 span { color: #e05a1e; }
+  .sub { color: #777; margin-bottom: 24px; font-size: 12px; }
+  .btn { padding: 12px 24px; background: #e05a1e; color: #fff; border: 3px solid #000; font-family: 'Courier New', monospace; font-size: 13px; font-weight: 700; text-transform: uppercase; cursor: pointer; box-shadow: 4px 4px 0 #000; letter-spacing: 0.1em; }
+  .btn:hover { box-shadow: 6px 6px 0 #000; transform: translate(-1px,-1px); }
+  .btn:disabled { background: #aaa; cursor: not-allowed; transform: none; box-shadow: 4px 4px 0 #000; }
+  .log { margin-top: 16px; background: #111; color: #f0ece4; padding: 16px; border: 3px solid #000; min-height: 80px; line-height: 2; max-height: 200px; overflow-y: auto; }
+  .log-line { display: block; }
+  .log-line.ok { color: #6fcf6f; }
+  .log-line.warn { color: #e05a1e; }
+  .log-line.info { color: #89c4ff; }
+  .progress { width: 100%; height: 4px; background: #ddd; margin-top: 8px; }
+  .progress-fill { height: 100%; background: #e05a1e; transition: width 0.3s; }
+  .section { margin-top: 28px; border: 3px solid #000; background: #fff; }
+  .section-header { background: #000; color: #fff; padding: 10px 16px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.1em; display: flex; justify-content: space-between; align-items: center; }
+  .section-header .count { background: #e05a1e; padding: 2px 8px; font-size: 11px; }
+  .section-body { padding: 16px; overflow-x: auto; }
+  .reviewer-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+  .reviewer-card { border: 2px solid #000; padding: 12px; }
+  .reviewer-name { font-size: 16px; font-weight: 900; margin-bottom: 4px; }
+  .reviewer-variants { font-size: 11px; color: #777; line-height: 1.6; }
+  .reviewer-count { font-size: 11px; color: #e05a1e; margin-top: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; padding: 6px 8px; background: #f5f0e8; border-bottom: 2px solid #000; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px; }
+  td { padding: 6px 8px; border-bottom: 1px dotted #ddd; vertical-align: top; line-height: 1.5; }
+  tr:hover td { background: #faf8f4; }
+  .missing { color: #c00; font-style: italic; }
+  .tag { display: inline-block; padding: 1px 6px; border: 1px solid; font-size: 11px; margin: 2px; }
+  .tag.red { border-color: #c00; color: #c00; }
+  .tag.orange { border-color: #e05a1e; color: #e05a1e; }
+  .export-btn { margin-top: 20px; padding: 10px 20px; background: #000; color: #fff; border: 3px solid #000; font-family: 'Courier New', monospace; font-size: 12px; font-weight: 700; text-transform: uppercase; cursor: pointer; }
+  .export-btn:hover { background: #333; }
+  .good { color: #2a7a2a; }
+</style>
+</head>
+<body>
+<h1>Bolg<span>Stats</span> Audit</h1>
+<div class="sub">Analyzes the full archive for reviewer inconsistencies, missing data, and format issues. Keep this URL private.</div>
+<button class="btn" id="runBtn" onclick="runAudit()">▶ Run Audit</button>
+<div class="progress"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+<div class="log" id="log"></div>
+<div id="results"></div>
+<script>
+let allPosts = [], auditData = [];
+
+function log(msg, type='info') {
+  const div = document.getElementById('log');
+  const line = document.createElement('span');
+  line.className = `log-line ${type}`;
+  line.textContent = `> ${msg}`;
+  div.appendChild(line);
+  div.scrollTop = div.scrollHeight;
+}
+function setProgress(pct) { document.getElementById('progressFill').style.width = pct + '%'; }
+
+async function runAudit() {
+  const btn = document.getElementById('runBtn');
+  btn.disabled = true;
+  document.getElementById('results').innerHTML = '';
+  document.getElementById('log').innerHTML = '';
+  setProgress(0);
+
+  log('Fetching posts from Tumblr…', 'info');
+  try { allPosts = await fetchAllPosts(); log(`Fetched ${allPosts.length} posts.`, 'ok'); }
+  catch(e) { log(`Tumblr fetch failed: ${e.message}`, 'warn'); btn.disabled = false; return; }
+
+  log('Parsing with Claude…', 'info');
+  auditData = await parseAllPosts(allPosts);
+  log(`Parsed ${auditData.length} post records.`, 'ok');
+
+  log('Analyzing…', 'info');
+  setProgress(95);
+  const report = analyzeData(auditData);
+  renderReport(report);
+  setProgress(100);
+  log('Audit complete!', 'ok');
+  btn.disabled = false;
+}
+
+async function fetchAllPosts() {
+  const posts = []; let offset = 0;
+  while (true) {
+    const r = await fetch(`/api/tumblr?offset=${offset}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const j = await r.json();
+    const b = j.response?.posts ?? [];
+    posts.push(...b);
+    setProgress(Math.min(35, posts.length * 0.07));
+    log(`  ${posts.length} posts fetched…`, 'info');
+    if (b.length < 50 || offset >= 600) break;
+    offset += 50;
+  }
+  return posts;
+}
+
+async function parseAllPosts(posts) {
+  const out = []; const BS = 25;
+  for (let i = 0; i < posts.length; i += BS) {
+    const pct = 35 + Math.round((i / posts.length) * 55);
+    setProgress(pct);
+    log(`  Parsing ${i+1}–${Math.min(i+BS, posts.length)} of ${posts.length}…`, 'info');
+    out.push(...await parseBatch(posts.slice(i, i+BS)));
+  }
+  return out;
+}
+
+async function parseBatch(posts) {
+  const block = posts.map((p, i) => {
+    const text = (p.body||p.caption||p.summary||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,600);
+    return `POST ${i+1} [id:${p.id} date:${(p.date||'').slice(0,10)} url:${p.post_url}]\n${text}`;
+  }).join('\n\n---\n\n');
+
+  const prompt = `Parse these Tumblr music review posts from TheBolg. Each post typically has a bold album/artist title then paragraphs like "7.5 - review text -reviewer". Known reviewers: b, Jt, chres, Tom, Mike, Lola, Aaron, Tyler, Tim, Matt, Lisa.
+
+For each POST return a JSON object:
+- postId: id from metadata
+- postUrl: url from metadata
+- date: from metadata
+- album: string or null
+- artist: string or null
+- reviews: array of { rawReviewer (exactly as written), normalizedReviewer (canonical name), score (number or null), hasScore (boolean), text (string) }
+- isReviewPost: boolean
+- issues: array of strings describing problems
+
+Return ONLY a raw JSON array, no markdown.
+
+${block}`;
+
+  try {
+    const res = await fetch('/api/ask', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ rawPrompt: prompt })
+    });
+    const d = await res.json();
+    return JSON.parse((d.answer||'[]').replace(/```json|```/g,'').trim());
+  } catch(e) { console.warn('batch failed', e); return []; }
+}
+
+function analyzeData(data) {
+  const reviewPosts = data.filter(p => p.isReviewPost);
+  const reviewerMap = {};
+  reviewPosts.forEach(p => {
+    (p.reviews||[]).forEach(r => {
+      if (!r.normalizedReviewer) return;
+      const key = r.normalizedReviewer.toLowerCase().trim();
+      if (!reviewerMap[key]) reviewerMap[key] = { canonical: r.normalizedReviewer, variants: new Set(), count: 0 };
+      if (r.rawReviewer) reviewerMap[key].variants.add(r.rawReviewer.trim());
+      reviewerMap[key].count++;
+    });
+  });
+  return {
+    total: data.length, reviewPosts: reviewPosts.length,
+    nonReview: data.filter(p => !p.isReviewPost), reviewerMap,
+    inconsistentReviewers: Object.values(reviewerMap).filter(r => r.variants.size > 1),
+    missingScores: reviewPosts.filter(p => (p.reviews||[]).some(r => !r.hasScore)),
+    missingReviewer: reviewPosts.filter(p => (p.reviews||[]).some(r => !r.normalizedReviewer || r.normalizedReviewer === 'unknown')),
+    withIssues: reviewPosts.filter(p => p.issues?.length > 0)
+  };
+}
+
+function renderReport(r) {
+  document.getElementById('results').innerHTML = `
+    <div class="section">
+      <div class="section-header"><span>Summary</span></div>
+      <div class="section-body"><table>
+        <tr><th>Metric</th><th>Value</th></tr>
+        <tr><td>Total posts fetched</td><td>${r.total}</td></tr>
+        <tr><td>Review posts</td><td>${r.reviewPosts}</td></tr>
+        <tr><td>Non-review posts</td><td>${r.nonReview.length}</td></tr>
+        <tr><td>Posts with issues</td><td class="${r.withIssues.length?'':'good'}">${r.withIssues.length}</td></tr>
+        <tr><td>Missing scores</td><td class="${r.missingScores.length?'':'good'}">${r.missingScores.length}</td></tr>
+        <tr><td>Missing reviewer</td><td class="${r.missingReviewer.length?'':'good'}">${r.missingReviewer.length}</td></tr>
+        <tr><td>Reviewer inconsistencies</td><td class="${r.inconsistentReviewers.length?'':'good'}">${r.inconsistentReviewers.length} reviewers</td></tr>
+        <tr><td>Unique reviewers found</td><td>${Object.keys(r.reviewerMap).length}</td></tr>
+      </table></div>
+    </div>
+
+    <div class="section">
+      <div class="section-header"><span>Reviewers Found</span><span class="count">${Object.keys(r.reviewerMap).length}</span></div>
+      <div class="section-body"><div class="reviewer-grid">
+        ${Object.values(r.reviewerMap).sort((a,b)=>b.count-a.count).map(rv=>`
+          <div class="reviewer-card">
+            <div class="reviewer-name">${rv.canonical}</div>
+            <div class="reviewer-count">${rv.count} reviews</div>
+            <div class="reviewer-variants">Variations:<br>${[...rv.variants].join('<br>')}</div>
+          </div>`).join('')}
+      </div></div>
+    </div>
+
+    <div class="section">
+      <div class="section-header"><span>Reviewer Name Inconsistencies</span><span class="count">${r.inconsistentReviewers.length}</span></div>
+      <div class="section-body">${!r.inconsistentReviewers.length ? '<span class="good">✓ No inconsistencies found.</span>' : `
+        <table><tr><th>Canonical</th><th>Variants Found</th><th>Count</th></tr>
+        ${r.inconsistentReviewers.map(rv=>`<tr><td><strong>${rv.canonical}</strong></td><td>${[...rv.variants].map(v=>`<span class="tag orange">${v}</span>`).join(' ')}</td><td>${rv.count}</td></tr>`).join('')}
+        </table>`}
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header"><span>Missing Scores</span><span class="count">${r.missingScores.length}</span></div>
+      <div class="section-body">${!r.missingScores.length ? '<span class="good">✓ All reviews have scores.</span>' : `
+        <table><tr><th>Date</th><th>Album</th><th>Artist</th><th>Reviewer</th><th>Link</th></tr>
+        ${r.missingScores.map(p=>`<tr><td>${p.date||''}</td><td>${p.album||'<span class="missing">?</span>'}</td><td>${p.artist||'<span class="missing">?</span>'}</td><td>${(p.reviews||[]).filter(r=>!r.hasScore).map(r=>r.normalizedReviewer||'?').join(', ')}</td><td><a href="${p.postUrl}" target="_blank">↗</a></td></tr>`).join('')}
+        </table>`}
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header"><span>Missing Reviewer Attribution</span><span class="count">${r.missingReviewer.length}</span></div>
+      <div class="section-body">${!r.missingReviewer.length ? '<span class="good">✓ All reviews have attribution.</span>' : `
+        <table><tr><th>Date</th><th>Album</th><th>Artist</th><th>Link</th></tr>
+        ${r.missingReviewer.map(p=>`<tr><td>${p.date||''}</td><td>${p.album||'<span class="missing">?</span>'}</td><td>${p.artist||'<span class="missing">?</span>'}</td><td><a href="${p.postUrl}" target="_blank">↗</a></td></tr>`).join('')}
+        </table>`}
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header"><span>Other Issues</span><span class="count">${r.withIssues.length}</span></div>
+      <div class="section-body">${!r.withIssues.length ? '<span class="good">✓ No other issues found.</span>' : `
+        <table><tr><th>Date</th><th>Album</th><th>Issues</th><th>Link</th></tr>
+        ${r.withIssues.map(p=>`<tr><td>${p.date||''}</td><td>${p.album||'<span class="missing">?</span>'}</td><td>${(p.issues||[]).map(i=>`<span class="tag red">${i}</span>`).join(' ')}</td><td><a href="${p.postUrl}" target="_blank">↗</a></td></tr>`).join('')}
+        </table>`}
+      </div>
+    </div>`;
+
+  const btn = document.createElement('button');
+  btn.className = 'export-btn';
+  btn.textContent = '↓ Export Full Data as JSON';
+  btn.onclick = () => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(auditData,null,2)],{type:'application/json'}));
+    a.download = 'bolgstats-audit.json';
+    a.click();
+  };
+  document.getElementById('results').appendChild(btn);
+}
+</script>
+</body>
+</html>
