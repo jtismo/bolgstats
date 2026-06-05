@@ -10,7 +10,33 @@ export default async (req) => {
   }
 
   try {
-    const { question, posts, reviewerVoice, reviewerName } = await req.json();
+    const body = await req.json();
+
+    // Audit mode: raw prompt passed directly
+    if (body.rawPrompt) {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': process.env.ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 2000,
+          messages: [{ role: 'user', content: body.rawPrompt }]
+        })
+      });
+      const data = await response.json();
+      const text = (data.content||[]).map(c=>c.text||'').join('');
+      return new Response(JSON.stringify({ answer: text }), {
+        status: 200,
+        headers: { ...cors, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Normal search mode
+    const { question, posts, reviewerVoice } = body;
 
     const context = posts.slice(0, 30).map(p => {
       const text = (p.body || p.caption || p.summary || '')
@@ -20,8 +46,6 @@ export default async (req) => {
 
     const system = reviewerVoice ||
       `You are a music analyst for TheBolg, a blog where friends review albums with scores out of 10. Be concise and witty.`;
-
-    const prompt = `ARCHIVE POSTS:\n${context}\n\nQUESTION: ${question}`;
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -34,13 +58,12 @@ export default async (req) => {
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 400,
         system,
-        messages: [{ role: 'user', content: prompt }]
+        messages: [{ role: 'user', content: `ARCHIVE POSTS:\n${context}\n\nQUESTION: ${question}` }]
       })
     });
 
     const data = await response.json();
-    const text = data.content?.[0]?.text
-      || `Error: ${JSON.stringify(data).slice(0, 200)}`;
+    const text = data.content?.[0]?.text || `Error: ${JSON.stringify(data).slice(0,200)}`;
 
     return new Response(JSON.stringify({ answer: text }), {
       status: 200,
