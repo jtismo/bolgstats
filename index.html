@@ -30,15 +30,74 @@
   .nav-link { font-size: 13px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; text-decoration: none; color: #000; }
   .nav-link.active { color: #e05a1e; border-bottom: 2px solid #e05a1e; padding-bottom: 1px; }
 
-  .main { max-width: 680px; margin: 0 auto; padding: 48px 24px 80px; }
-  .headline { font-size: clamp(42px, 10vw, 64px); font-weight: 900; text-transform: uppercase; line-height: 1; letter-spacing: -0.02em; margin-bottom: 16px; }
-  .subhead { font-family: 'Courier New', Courier, monospace; font-size: 14px; color: #555; margin-bottom: 36px; line-height: 1.5; }
+  .main { max-width: 680px; margin: 0 auto; padding: 32px 24px 80px; }
 
+  .headline { font-size: clamp(42px, 10vw, 64px); font-weight: 900; text-transform: uppercase; line-height: 1; letter-spacing: -0.02em; margin-bottom: 12px; }
+
+  .subhead { font-family: 'Courier New', Courier, monospace; font-size: 14px; color: #555; margin-bottom: 28px; line-height: 1.5; }
+
+  /* ── ROBOT SELECTOR ── */
+  .robot-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: #111;
+    border: 3px solid #000;
+    box-shadow: 5px 5px 0 #000;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .robot-label {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: #888;
+    white-space: nowrap;
+  }
+
+  .robot-name {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 16px;
+    font-weight: 700;
+    color: #e05a1e;
+    flex: 1;
+  }
+
+  .robot-desc {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 11px;
+    color: #aaa;
+    flex-basis: 100%;
+    margin-top: 2px;
+    line-height: 1.5;
+    font-style: italic;
+  }
+
+  .shuffle-btn {
+    padding: 6px 12px;
+    background: transparent;
+    border: 1.5px solid #555;
+    color: #aaa;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .shuffle-btn:hover { border-color: #e05a1e; color: #e05a1e; }
+
+  /* ── SEARCH ── */
   .search-input {
     width: 100%; padding: 16px 18px;
     font-size: 16px; font-family: 'Courier New', Courier, monospace;
     border: 3px solid #000; background: #fff; color: #000; outline: none;
     box-shadow: 5px 5px 0 #000; margin-bottom: 12px;
+    transition: box-shadow 0.15s;
   }
   .search-input::placeholder { color: #999; }
   .search-input:focus { box-shadow: 7px 7px 0 #000; }
@@ -54,9 +113,11 @@
   .ask-btn:active { box-shadow: 2px 2px 0 #000; transform: translate(2px,2px); }
   .ask-btn:disabled { background: #aaa; cursor: not-allowed; transform: none; }
 
+  /* ── RESULT ── */
   .result-box { margin-top: 24px; background: #111; border: 3px solid #000; box-shadow: 5px 5px 0 #000; padding: 24px; display: none; }
   .result-box.visible { display: block; }
-  .result-label { font-size: 11px; font-weight: 900; letter-spacing: 0.2em; text-transform: uppercase; color: #e05a1e; margin-bottom: 12px; }
+  .result-label { font-size: 11px; font-weight: 900; letter-spacing: 0.2em; text-transform: uppercase; color: #e05a1e; margin-bottom: 4px; }
+  .result-reviewer { font-size: 10px; color: #666; font-family: 'Courier New', Courier, monospace; margin-bottom: 12px; font-style: italic; }
   .result-divider { height: 1px; background: #e05a1e; margin-bottom: 16px; }
   .result-text { font-family: 'Courier New', Courier, monospace; font-size: 14px; line-height: 1.7; color: #f0ece4; white-space: pre-wrap; }
 
@@ -65,13 +126,32 @@
   .spinner { width: 14px; height: 14px; border: 2px solid #ddd; border-top-color: #e05a1e; border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  .status { font-family: 'Courier New', Courier, monospace; font-size: 12px; color: #999; margin-bottom: 24px; }
+  .status { font-family: 'Courier New', Courier, monospace; font-size: 12px; color: #999; margin-bottom: 20px; }
 
-  #boot { position: fixed; inset: 0; background: #f5f0e8; z-index: 999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; transition: opacity 0.4s; }
+  /* ── BOOT ── */
+  #boot {
+    position: fixed; inset: 0; background: #f5f0e8; z-index: 999;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 16px; transition: opacity 0.4s; padding: 40px 24px; text-align: center;
+  }
   #boot.out { opacity: 0; pointer-events: none; }
+
   .boot-title { font-size: 32px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em; }
   .boot-title span { color: #e05a1e; }
   .boot-msg { font-family: 'Courier New', Courier, monospace; font-size: 13px; color: #777; }
+  .boot-joke {
+    max-width: 480px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 13px;
+    color: #444;
+    line-height: 1.7;
+    padding: 16px 20px;
+    border-left: 3px solid #e05a1e;
+    text-align: left;
+    background: #ede7d9;
+    min-height: 60px;
+  }
+  .boot-joke-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em; color: #e05a1e; margin-bottom: 6px; font-weight: 700; }
   .boot-track { width: 200px; height: 3px; background: #ddd; }
   .boot-fill { height: 100%; background: #e05a1e; width: 0%; transition: width 0.35s ease; }
 
@@ -85,6 +165,10 @@
   <div class="boot-title">Bolg<span>Stats</span></div>
   <div class="boot-msg" id="bootMsg">Connecting to Tumblr…</div>
   <div class="boot-track"><div class="boot-fill" id="bootFill"></div></div>
+  <div class="boot-joke" id="bootJoke" style="display:none">
+    <div class="boot-joke-label">From the archive…</div>
+    <div id="bootJokeText"></div>
+  </div>
 </div>
 
 <header>
@@ -102,7 +186,7 @@
   <div class="status" id="status">Loading archive…</div>
 
   <input class="search-input" id="q" type="text"
-    placeholder="Who hates pop music the most?"
+    placeholder="Loading…"
     autocomplete="off" onkeydown="if(event.key==='Enter') ask()">
 
   <button class="ask-btn" id="askBtn" onclick="ask()" disabled>
@@ -112,11 +196,20 @@
     Ask
   </button>
 
-  <div class="loading" id="loading"><div class="spinner"></div> Searching the archive…</div>
+  <!-- Robot selector -->
+  <div class="robot-bar">
+    <span class="robot-label">Answering as</span>
+    <span class="robot-name" id="robotName">—</span>
+    <button class="shuffle-btn" onclick="shuffleReviewer()">⟳ Shuffle</button>
+    <span class="robot-desc" id="robotDesc"></span>
+  </div>
+
+  <div class="loading" id="loading"><div class="spinner"></div> <span id="loadingMsg">Searching the archive…</span></div>
   <div class="error" id="errBox"></div>
 
   <div class="result-box" id="resultBox">
-    <div class="result-label">Claude Says:</div>
+    <div class="result-label" id="resultLabel">Says:</div>
+    <div class="result-reviewer" id="resultReviewer"></div>
     <div class="result-divider"></div>
     <div class="result-text" id="resultText"></div>
   </div>
@@ -124,29 +217,122 @@
 
 <script>
 const BLOG = 'thebolg';
-const KEY  = 'BRqwhfZWyoRss6ax8Gbb4UrijPqO1aedOzYsVQfpIm23h9nmvU';
-const CKEY = 'thebolg_posts_v1';
+const TUMBLR_KEY = 'BRqwhfZWyoRss6ax8Gbb4UrijPqO1aedOzYsVQfpIm23h9nmvU';
+const CKEY = 'thebolg_posts_v2';
 const TTL  = 60 * 60 * 1000;
 
 let POSTS = [];
+let currentReviewer = null;
 
+// ── REVIEWER PERSONAS ──────────────────────────────────────────────────────
+const REVIEWERS = [
+  {
+    name: 'b',
+    desc: 'Verbose, poetic, finds hidden beauty in everything. Will compare an album to a cosmic event.',
+    voice: `You are "b", a music reviewer from TheBolg. You write long, lush, metaphor-heavy sentences. You find beauty and complexity everywhere. You're enthusiastic and generous with praise when something moves you. You love dance music, soul, and anything with emotional depth. Write in b's voice — lyrical, warm, a little verbose.`
+  },
+  {
+    name: 'Jt',
+    desc: 'Wry, self-deprecating, drops dad-joke energy with genuine insight. References his own life constantly.',
+    voice: `You are "Jt", a music reviewer from TheBolg. You write with wry humor, self-deprecation, and constant references to your own suburban dad life (family movie nights, turkey hunting, being middle-aged). You have genuine taste but deliver it through jokes and personal anecdotes. Write in Jt's voice — funny, warm, a little self-aware.`
+  },
+  {
+    name: 'chres',
+    desc: 'Unpredictable, vivid, uses wild analogies. Might compare an album to a medical procedure.',
+    voice: `You are "chres", a music reviewer from TheBolg. You write with wild, unexpected analogies and vivid imagery. Your reviews are short but memorable — often a single devastating sentence. You don't soften opinions. Write in chres's voice — punchy, weird, unforgettable.`
+  },
+  {
+    name: 'Tom',
+    voice: `You are "Tom", a music reviewer from TheBolg. Answer based on Tom's reviews in the archive. Be direct and opinionated.`,
+    desc: 'Direct, no-nonsense takes.'
+  },
+  {
+    name: 'Mike',
+    voice: `You are "Mike", a music reviewer from TheBolg. Answer based on Mike's reviews in the archive. Be direct and opinionated.`,
+    desc: 'Straight shooter.'
+  },
+  {
+    name: 'Lola',
+    voice: `You are "Lola", a music reviewer from TheBolg. Answer based on Lola's reviews in the archive.`,
+    desc: 'Sharp ears, sharper opinions.'
+  },
+];
+
+// ── PLACEHOLDER POOL ────────────────────────────────────────────────────────
+const PLACEHOLDERS = [
+  'Who gives the most 8s?',
+  'What\'s the most underrated album in the archive?',
+  'Who hates pop music the most?',
+  'What album caused the most disagreement?',
+  'What\'s the best reviewed hip-hop record?',
+  'Which reviewer is the harshest?',
+  'What\'s the highest rated album ever?',
+  'Who reviews the most dance music?',
+  'What\'s the funniest review in the archive?',
+  'Which albums got a perfect 10?',
+  'Who has the most eclectic taste?',
+  'What\'s the worst reviewed album?',
+  'Which reviewer changed their mind the most?',
+  'What genre gets the highest scores on average?',
+];
+
+let placeholderIndex = Math.floor(Math.random() * PLACEHOLDERS.length);
+
+function rotatePlaceholder() {
+  placeholderIndex = (placeholderIndex + 1) % PLACEHOLDERS.length;
+  document.getElementById('q').placeholder = PLACEHOLDERS[placeholderIndex];
+}
+
+function shuffleReviewer() {
+  const others = REVIEWERS.filter(r => r.name !== currentReviewer?.name);
+  currentReviewer = others[Math.floor(Math.random() * others.length)];
+  document.getElementById('robotName').textContent = currentReviewer.name;
+  document.getElementById('robotDesc').textContent = currentReviewer.desc;
+}
+
+// ── BOOT ────────────────────────────────────────────────────────────────────
 async function init() {
+  // Pick random reviewer
+  currentReviewer = REVIEWERS[Math.floor(Math.random() * REVIEWERS.length)];
+  document.getElementById('robotName').textContent = currentReviewer.name;
+  document.getElementById('robotDesc').textContent = currentReviewer.desc;
+
+  // Set first placeholder
+  document.getElementById('q').placeholder = PLACEHOLDERS[placeholderIndex];
+
   const cached = readCache();
   if (cached) {
     POSTS = cached;
-    ready(`${POSTS.length} posts loaded.`);
+    showBootJoke();
+    bMsg(`${POSTS.length} posts loaded.`, 100);
+    await sleep(1200);
     return done();
   }
 
-  bMsg('Fetching archive…', 20);
+  bMsg('Fetching archive…', 10);
   try {
     POSTS = await fetchPosts();
     writeCache(POSTS);
-    ready(`${POSTS.length} posts loaded.`);
+    showBootJoke();
+    bMsg(`${POSTS.length} posts loaded.`, 100);
+    await sleep(1200);
   } catch(e) {
     showErr(`Could not load archive: ${e.message}`);
   }
   done();
+}
+
+function showBootJoke() {
+  // Pick a random post snippet as a "joke"
+  const candidates = POSTS.filter(p => {
+    const t = strip(p.body || p.caption || '');
+    return t.length > 40 && t.length < 300;
+  });
+  if (!candidates.length) return;
+  const pick = candidates[Math.floor(Math.random() * candidates.length)];
+  const text = strip(pick.body || pick.caption || '').slice(0, 200);
+  document.getElementById('bootJokeText').textContent = `"${text}"`;
+  document.getElementById('bootJoke').style.display = 'block';
 }
 
 async function fetchPosts() {
@@ -157,23 +343,33 @@ async function fetchPosts() {
     const j = await r.json();
     const b = j.response?.posts ?? [];
     posts.push(...b);
-    bMsg(`Fetched ${posts.length} posts…`, 20 + Math.min(70, posts.length * 0.3));
+    bMsg(`Fetched ${posts.length} posts…`, 10 + Math.min(80, posts.length * 0.15));
     if (b.length < 50 || offset >= 500) break;
     offset += 50;
   }
   return posts;
 }
 
+// ── ASK ─────────────────────────────────────────────────────────────────────
 async function ask() {
   const q = document.getElementById('q').value.trim();
-  if (!q || !POSTS.length) return;
+  if (!POSTS.length) return;
+
+  // If empty just rotate placeholder and focus
+  if (!q) {
+    rotatePlaceholder();
+    document.getElementById('q').focus();
+    return;
+  }
 
   const btn  = document.getElementById('askBtn');
   const load = document.getElementById('loading');
   const box  = document.getElementById('resultBox');
   const txt  = document.getElementById('resultText');
+  const lMsg = document.getElementById('loadingMsg');
 
   btn.disabled = true;
+  lMsg.textContent = `Consulting ${currentReviewer.name}…`;
   load.classList.add('visible');
   box.classList.remove('visible');
 
@@ -181,11 +377,23 @@ async function ask() {
     const res = await fetch('/api/ask', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question: q, posts: POSTS })
+      body: JSON.stringify({
+        question: q,
+        posts: POSTS,
+        reviewerVoice: currentReviewer.voice,
+        reviewerName: currentReviewer.name
+      })
     });
     const d = await res.json();
+
+    document.getElementById('resultLabel').textContent = `${currentReviewer.name} Says:`;
+    document.getElementById('resultReviewer').textContent = currentReviewer.desc;
     txt.textContent = d.answer || 'No answer found.';
     box.classList.add('visible');
+
+    // Rotate placeholder after each search
+    rotatePlaceholder();
+    document.getElementById('q').value = '';
   } catch(e) {
     txt.textContent = `Error: ${e.message}`;
     box.classList.add('visible');
@@ -195,11 +403,7 @@ async function ask() {
   load.classList.remove('visible');
 }
 
-function ready(msg) {
-  document.getElementById('status').textContent = msg;
-  document.getElementById('askBtn').disabled = false;
-}
-
+// ── CACHE ────────────────────────────────────────────────────────────────────
 function writeCache(p) { try { sessionStorage.setItem(CKEY, JSON.stringify({ts:Date.now(),p})); } catch{} }
 function readCache() {
   try { const {ts,p} = JSON.parse(sessionStorage.getItem(CKEY)||'null'); return Date.now()-ts>TTL?null:p; }
@@ -207,8 +411,15 @@ function readCache() {
 }
 
 function bMsg(m,pct) { document.getElementById('bootMsg').textContent=m; document.getElementById('bootFill').style.width=pct+'%'; }
-function done() { const b=document.getElementById('boot'); b.classList.add('out'); setTimeout(()=>b.style.display='none',400); }
+function done() {
+  const b=document.getElementById('boot'); b.classList.add('out');
+  setTimeout(()=>b.style.display='none',400);
+  document.getElementById('status').textContent = `${POSTS.length} posts loaded.`;
+  document.getElementById('askBtn').disabled = false;
+}
 function showErr(m) { const e=document.getElementById('errBox'); e.textContent=m; e.classList.add('visible'); }
+function strip(h) { return h.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim(); }
+function sleep(ms) { return new Promise(r=>setTimeout(r,ms)); }
 
 init();
 </script>
