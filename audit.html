@@ -111,7 +111,7 @@ async function parseAllPosts(posts) {
   }
 
   // Run 3 batches at a time in parallel
-  const CONCURRENCY = 3;
+  const CONCURRENCY = 2;
   for (let i = 0; i < batches.length; i += CONCURRENCY) {
     const chunk = batches.slice(i, i + CONCURRENCY);
     const pct = 35 + Math.round((i / batches.length) * 55);
@@ -121,7 +121,7 @@ async function parseAllPosts(posts) {
     const results = await Promise.all(chunk.map(b => parseBatch(b)));
     results.forEach(r => out.push(...r));
     log(`  Got ${results.flat().length} records from this chunk`, results.flat().length > 0 ? 'ok' : 'warn');
-    await new Promise(r => setTimeout(r, 300));
+    await new Promise(r => setTimeout(r, 1000));
   }
   return out;
 }
