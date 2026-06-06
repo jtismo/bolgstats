@@ -36,13 +36,13 @@ export default async (req) => {
     }
 
     // Normal search mode
-    const { question, posts, reviewerVoice } = body;
+    const { question, posts, reviewerVoice, reviewerName } = body;
 
-    const context = posts.slice(0, 30).map(p => {
-      const text = (p.body || p.caption || p.summary || '')
-        .replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 400);
-      return `[${(p.date||'').slice(0,10)}] ${text}`;
-    }).join('\n\n');
+    const context = posts.map(r => {
+      const score = r.score != null ? `${r.score}/10` : 'unscored';
+      const pick = r.pick ? ` [${r.pick}'s pick]` : '';
+      return `${r.reviewer} | ${score}${pick} | "${r.album}" by ${r.artist} (${(r.date||'').slice(0,7)}): "${r.text}"`;
+    }).join('\n');
 
     const system = reviewerVoice ||
       `You are a music analyst for TheBolg, a blog where friends review albums with scores out of 10. Be concise and witty.`;

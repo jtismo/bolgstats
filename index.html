@@ -139,19 +139,6 @@
   .boot-title { font-size: 32px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em; }
   .boot-title span { color: #e05a1e; }
   .boot-msg { font-family: 'Courier New', Courier, monospace; font-size: 13px; color: #777; }
-  .boot-joke {
-    max-width: 480px;
-    font-family: 'Courier New', Courier, monospace;
-    font-size: 13px;
-    color: #444;
-    line-height: 1.7;
-    padding: 16px 20px;
-    border-left: 3px solid #e05a1e;
-    text-align: left;
-    background: #ede7d9;
-    min-height: 60px;
-  }
-  .boot-joke-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em; color: #e05a1e; margin-bottom: 6px; font-weight: 700; }
   .boot-track { width: 200px; height: 3px; background: #ddd; }
   .boot-fill { height: 100%; background: #e05a1e; width: 0%; transition: width 0.35s ease; }
 
@@ -163,12 +150,8 @@
 
 <div id="boot">
   <div class="boot-title">Bolg<span>Stats</span></div>
-  <div class="boot-msg" id="bootMsg">Connecting to Tumblr…</div>
+  <div class="boot-msg" id="bootMsg">Loading archive…</div>
   <div class="boot-track"><div class="boot-fill" id="bootFill"></div></div>
-  <div class="boot-joke" id="bootJoke" style="display:none">
-    <div class="boot-joke-label">From the archive…</div>
-    <div id="bootJokeText"></div>
-  </div>
 </div>
 
 <header>
@@ -218,7 +201,7 @@
 <script>
 const BLOG = 'thebolg';
 const TUMBLR_KEY = 'BRqwhfZWyoRss6ax8Gbb4UrijPqO1aedOzYsVQfpIm23h9nmvU';
-const CKEY = 'thebolg_posts_v2';
+const CKEY = 'thebolg_reviews_v1';
 const TTL  = 60 * 60 * 1000;
 
 let POSTS = [];
@@ -229,7 +212,7 @@ const REVIEWERS = [
   {
     name: 'b',
     desc: 'Verbose, poetic, finds hidden beauty in everything. Will compare an album to a cosmic event.',
-    voice: `You are "b", a music reviewer from TheBolg. You write long, lush, metaphor-heavy sentences. You find beauty and complexity everywhere. You're enthusiastic and generous with praise when something moves you. You love dance music, soul, and anything with emotional depth. Write in b's voice — lyrical, warm, a little verbose.`
+    voice: `You are "b", a music reviewer from TheBolg. You write long, lush, metaphor-heavy sentences. You find beauty and complexity everywhere. You love dance music, soul, and anything with emotional depth. You sometimes sign as "BL". Write in b's voice — lyrical, warm, a little verbose, always finding the deeper meaning.`
   },
   {
     name: 'Jt',
@@ -238,23 +221,38 @@ const REVIEWERS = [
   },
   {
     name: 'chres',
-    desc: 'Unpredictable, vivid, uses wild analogies. Might compare an album to a medical procedure.',
-    voice: `You are "chres", a music reviewer from TheBolg. You write with wild, unexpected analogies and vivid imagery. Your reviews are short but memorable — often a single devastating sentence. You don't soften opinions. Write in chres's voice — punchy, weird, unforgettable.`
+    desc: 'Unpredictable, vivid, uses wild analogies. Aliases include chreanderthal, chrillary, chrepeche.',
+    voice: `You are "chres", a music reviewer from TheBolg. You write with wild, unexpected analogies and vivid imagery. Your reviews are short but memorable — often a single devastating or absurd sentence. You don't soften opinions. You sometimes sign with creative aliases like "chreanderthal" or "chrepeche". Write in chres's voice — punchy, weird, unforgettable.`
   },
   {
     name: 'Tom',
-    voice: `You are "Tom", a music reviewer from TheBolg. Answer based on Tom's reviews in the archive. Be direct and opinionated.`,
-    desc: 'Direct, no-nonsense takes.'
-  },
-  {
-    name: 'Mike',
-    voice: `You are "Mike", a music reviewer from TheBolg. Answer based on Mike's reviews in the archive. Be direct and opinionated.`,
-    desc: 'Straight shooter.'
+    desc: 'Dry wit, cuts straight to the point. Signs as "Peck" on older posts.',
+    voice: `You are "Tom" (also known as "Peck"), a music reviewer from TheBolg. You are direct and dry, with a sharp wit. You cut straight to the essence of an album without much embellishment. You have strong opinions and aren't afraid to be blunt. Write in Tom's voice — concise, dry, occasionally cutting.`
   },
   {
     name: 'Lola',
-    voice: `You are "Lola", a music reviewer from TheBolg. Answer based on Lola's reviews in the archive.`,
-    desc: 'Sharp ears, sharper opinions.'
+    desc: 'Contextual, emotional, brings personal history to every listen.',
+    voice: `You are "Lola", a music reviewer from TheBolg. You bring deep personal and cultural context to your reviews. You connect music to specific moments, settings, and emotions. You're thoughtful and literary — your review of Digable Planets referenced your own radicalization at 16. Write in Lola's voice — rich, contextual, emotionally intelligent.`
+  },
+  {
+    name: 'Aaron',
+    desc: 'Warm, genre-curious, unafraid to give a 9.5 or a 4. Cares about soul and authenticity.',
+    voice: `You are "Aaron", a music reviewer from TheBolg. You are warm and enthusiastic, with a wide genre curiosity. You're not afraid of strong scores in either direction. You care deeply about authenticity and soul — you gave Miley Cyrus a 9.5 and meant it. Write in Aaron's voice — generous, genuine, emotionally direct.`
+  },
+  {
+    name: 'Tim',
+    desc: 'Thoughtful, measured, academic. Brings careful analysis and social awareness.',
+    voice: `You are "Tim", a music reviewer from TheBolg. You are measured and thoughtful, bringing careful analysis and social awareness to your reviews. You notice what an album is reaching for and assess how well it gets there. You gave Nina Simone a 9 and called her "an oracle, a communicator of wisdom." Write in Tim's voice — precise, considered, intellectually engaged.`
+  },
+  {
+    name: 'Matt',
+    desc: 'Succinct and sharp. Finds the perfect image or metaphor in one sentence.',
+    voice: `You are "Matt", a music reviewer from TheBolg. You are economical and precise — you find the perfect image or metaphor and don't overstay your welcome. You called Big Thief's Dragon New Warm Mountain "every pull of the slot machine handle brings a mix of beautiful, silly, noisy, heartbreaking creativity." Write in Matt's voice — tight, vivid, immediately on point.`
+  },
+  {
+    name: 'Lisa',
+    desc: 'Sensory and playful, describes music through physical feeling.',
+    voice: `You are "Lisa", a music reviewer from TheBolg. You describe music through physical and sensory experience. You called one album "like a flitting wren delicately whispering into my ear" and another went "straight to my smile muscles." Write in Lisa's voice — sensory, playful, immediate, full of physical imagery.`
   },
 ];
 
@@ -277,7 +275,6 @@ const PLACEHOLDERS = [
 ];
 
 let placeholderIndex = Math.floor(Math.random() * PLACEHOLDERS.length);
-let jokeInterval = null;
 
 function rotatePlaceholder() {
   placeholderIndex = (placeholderIndex + 1) % PLACEHOLDERS.length;
@@ -304,75 +301,26 @@ async function init() {
   const cached = readCache();
   if (cached) {
     POSTS = cached;
-    startJokeCycle();
-    bMsg(`${POSTS.length} posts loaded. Here's what you're in for…`, 100);
-    await sleep(2800);
-    stopJokeCycle();
+    bMsg(`${POSTS.length} reviews loaded.`, 100);
+    await sleep(400);
     return done();
   }
 
-  bMsg('Loading archive…', 10);
+  bMsg('Loading archive…', 20);
   try {
-    POSTS = await fetchPosts();
+    const res = await fetch('/reviews.json');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    POSTS = await res.json();
     writeCache(POSTS);
-    startJokeCycle();
-    bMsg('Archive loaded. Enjoy these while you wait…', 100);
-    await sleep(2800);
-    stopJokeCycle();
+    bMsg(`${POSTS.length} reviews loaded.`, 100);
+    await sleep(400);
   } catch(e) {
     showErr(`Could not load archive: ${e.message}`);
   }
   done();
 }
 
-function startJokeCycle() {
-  const candidates = POSTS.filter(p => {
-    const t = strip(p.body || p.caption || '');
-    return t.length > 40 && t.length < 280;
-  });
-  if (!candidates.length) return;
 
-  function showNext() {
-    const pick = candidates[Math.floor(Math.random() * candidates.length)];
-    const text = strip(pick.body || pick.caption || '').slice(0, 240);
-    document.getElementById('bootJokeText').textContent = `"${text}"`;
-    document.getElementById('bootJoke').style.display = 'block';
-  }
-
-  showNext();
-  jokeInterval = setInterval(showNext, 2800);
-}
-
-function stopJokeCycle() {
-  if (jokeInterval) { clearInterval(jokeInterval); jokeInterval = null; }
-}
-
-async function fetchPosts() {
-  const posts = []; let offset = 0;
-  const loadingLines = [
-    'Raiding the crates…',
-    'Consulting the reviews…',
-    'Waking up the bolg…',
-    'Counting the 8s…',
-    'Finding out who hates pop…',
-    'Sorting through the takes…',
-    'Asking the archive…',
-  ];
-  let lineIdx = 0;
-
-  while (true) {
-    bMsg(loadingLines[lineIdx % loadingLines.length], 10 + Math.min(70, posts.length * 0.15));
-    lineIdx++;
-    const r = await fetch(`/api/tumblr?offset=${offset}`);
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    const j = await r.json();
-    const b = j.response?.posts ?? [];
-    posts.push(...b);
-    if (b.length < 50 || offset >= 500) break;
-    offset += 50;
-  }
-  return posts;
-}
 
 // ── ASK ─────────────────────────────────────────────────────────────────────
 async function ask() {
@@ -399,7 +347,10 @@ async function ask() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         question,
-        posts: POSTS,
+        posts: POSTS.map(r => ({
+          album: r.album, artist: r.artist, reviewer: r.reviewer,
+          score: r.score, text: r.text, date: r.date, pick: r.pick, type: r.type
+        })),
         reviewerVoice: currentReviewer.voice,
         reviewerName: currentReviewer.name
       })
@@ -434,7 +385,7 @@ function bMsg(m,pct) { document.getElementById('bootMsg').textContent=m; documen
 function done() {
   const b=document.getElementById('boot'); b.classList.add('out');
   setTimeout(()=>b.style.display='none',400);
-  document.getElementById('status').textContent = `${POSTS.length} posts loaded.`;
+  document.getElementById('status').textContent = `${POSTS.length} reviews in the archive.`;
   document.getElementById('askBtn').disabled = false;
 }
 function showErr(m) { const e=document.getElementById('errBox'); e.textContent=m; e.classList.add('visible'); }
