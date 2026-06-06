@@ -196,14 +196,20 @@ async function run() {
 async function fetchAllPosts() {
   const posts = []; let offset = 0;
   while (true) {
-    const r = await fetch(`/api/tumblr?offset=${offset}`);
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    const j = await r.json();
-    const b = j.response?.posts ?? [];
+    let b = [];
+    try {
+      const r = await fetch(`/api/tumblr?offset=${offset}`);
+      if (!r.ok) break;
+      const j = await r.json();
+      b = j.response?.posts ?? [];
+    } catch(e) {
+      log(`Stopped at ${posts.length} posts (API limit reached).`, 'info');
+      break;
+    }
     posts.push(...b);
     setProgress(Math.min(55, posts.length * 0.09));
     log(`  ${posts.length} posts fetched…`, 'info');
-    if (b.length < 50 || offset >= 700) break;
+    if (b.length < 50 || offset >= 600) break;
     offset += 50;
   }
   return posts;
