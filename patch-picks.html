@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="color-scheme" content="light only">
+<title>BolgStats — Patch Picks</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #f5f0e8; font-family: 'Courier New', monospace; font-size: 13px; color: #000; padding: 24px; }
+  h1 { font-size: 22px; font-weight: 900; text-transform: uppercase; margin-bottom: 6px; }
+  h1 span { color: #e05a1e; }
+  .sub { color: #777; margin-bottom: 20px; font-size: 12px; line-height: 1.6; }
+  .btn { padding: 12px 24px; background: #e05a1e; color: #fff; border: 3px solid #000; font-family: 'Courier New', monospace; font-size: 13px; font-weight: 700; text-transform: uppercase; cursor: pointer; box-shadow: 4px 4px 0 #000; letter-spacing: 0.1em; }
+  .btn:hover { box-shadow: 6px 6px 0 #000; transform: translate(-1px,-1px); }
+  .btn:disabled { background: #aaa; cursor: not-allowed; transform: none; box-shadow: 4px 4px 0 #000; }
+  .log { margin-top: 16px; background: #111; color: #f0ece4; padding: 16px; border: 3px solid #000; min-height: 80px; line-height: 2; max-height: 300px; overflow-y: auto; }
+  .log-line { display: block; }
+  .log-line.ok { color: #6fcf6f; }
+  .log-line.warn { color: #e05a1e; }
+  .log-line.info { color: #89c4ff; }
+  .progress { width: 100%; height: 4px; background: #ddd; margin-top: 8px; }
+  .progress-fill { height: 100%; background: #e05a1e; transition: width 0.3s; }
+  .upload-area { margin-top: 20px; border: 3px dashed #aaa; padding: 20px; text-align: center; color: #777; cursor: pointer; }
+  .upload-area:hover { border-color: #e05a1e; color: #e05a1e; }
+  .export-btn { margin-top: 20px; padding: 10px 20px; background: #000; color: #fff; border: 3px solid #000; font-family: 'Courier New', monospace; font-size: 12px; font-weight: 700; text-transform: uppercase; cursor: pointer; display: none; }
+  .export-btn.visible { display: inline-block; }
+  .export-btn:hover { background: #333; }
+  .stats { margin-top: 16px; background: #fff; border: 3px solid #000; padding: 16px; display: none; }
+  .stats.visible { display: block; }
+  .stat { margin-bottom: 6px; }
+  .stat strong { color: #e05a1e; }
+</style>
+</head>
+<body>
+
+<h1>Bolg<span>Stats</span> — Patch Picks</h1>
+<div class="sub">
+  Step 1: Upload your current <strong>reviews.json</strong> below.<br>
+  Step 2: Click Run — it fetches all Tumblr posts, extracts pick tags, and patches the JSON.<br>
+  Step 3: Download the updated reviews.json and replace it in your repo.
+</div>
+
+<div class="upload-area" onclick="document.getElementById('fileInput').click()">
+  📁 Click to upload reviews.json
+  <input type="file" id="fileInput" accept=".json" style="display:none" onchange="handleFile(event)">
+</div>
+
+<div style="margin-top:12px">
+  <button class="btn" id="runBtn" onclick="run()" disabled>▶ Patch Picks</button>
+</div>
+
+<div class="progress"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+<div class="log" id="log"></div>
+
+<div class="stats" id="stats">
+  <div class="stat">Reviews patched with pick data: <strong id="statPatched">0</strong></div>
+  <div class="stat">Unique pickers found: <strong id="statPickers">0</strong></div>
+  <div class="stat">Reviews still without pick: <strong id="statNoPick">0</strong></div>
+</div>
+
+<button class="export-btn" id="exportBtn">↓ Download Updated reviews.json</button>
+
+<script>
+let reviews = [];
+let updatedReviews = [];
+
+// Known reviewer name → canonical mapping for pick tags
+const PICK_MAP = {
+  'b': 'b', 'bl': 'b', 'brian': 'b',
+  'jt': 'Jt', 'teej': 'Jt',
+  'chres': 'chres', 'chris': 'chres',
+  'tom': 'Tom', 'peck': 'Tom',
+  'tyler': 'Tyler', 'ty': 'Tyler',
+  'lola': 'Lola',
+  'aaron': 'Aaron',
+  'tim': 'Tim', 'tj': 'Tim',
+  'matt': 'Matt', 'mjs': 'Matt',
+  'lisa': 'Lisa', 'lisamaria': 'Lisa',
+  'mike': 'Mike',
+};
+
+function log(msg, type='info') {
+  const div = document.getElementById('log');
+  const line = document.createElement('span');
+  line.className = `log-line ${type}`;
+  line.textContent = `> ${msg}`;
+  div.appendChild(line);
+  div.scrollTop = div.scrollHeight;
+}
+
+function setProgress(pct) {
+  document.getElementById('progressFill').style.width = pct + '%';
+}
+
+function handleFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = evt => {
+    try {
+      reviews = JSON.parse(evt.target.result);
+      log(`Loaded reviews.json — ${reviews.length} reviews.`, 'ok');
+      document.getElementById('runBtn').disabled = false;
+      document.querySelector('.upload-area').textContent = `✓ ${file.name} loaded (${reviews.length} reviews)`;
+    } catch(e) {
+      log(`Failed to parse JSON: ${e.message}`, 'warn');
+    }
+  };
+  reader.readAsText(file);
+}
+
+async function run() {
+  if (!reviews.length) return;
+  const btn = document.getElementById('runBtn');
+  btn.disabled = true;
+  document.getElementById('log').innerHTML = '';
+  setProgress(0);
+
+  // Step 1: Fetch all Tumblr posts
+  log('Fetching posts from Tumblr…', 'info');
+  let posts = [];
+  try {
+    posts = await fetchAllPosts();
+    log(`Fetched ${posts.length} posts.`, 'ok');
+  } catch(e) {
+    log(`Tumblr fetch failed: ${e.message}`, 'warn');
+    btn.disabled = false;
+    return;
+  }
+
+  // Step 2: Build postId → pick map from tags
+  log('Extracting pick tags…', 'info');
+  setProgress(60);
+  const pickMap = {};
+  let pickTagsFound = 0;
+
+  posts.forEach(p => {
+    const tags = (p.tags || []).map(t => t.toLowerCase().trim());
+    const postId = String(p.id);
+    for (const tag of tags) {
+      // Match patterns: "jtpick", "bpick", "jt pick", "b pick", "jt's pick"
+      const m = tag.match(/^([a-z]+)[\s']*pick$/);
+      if (m) {
+        const name = m[1];
+        const canonical = PICK_MAP[name];
+        if (canonical) {
+          pickMap[postId] = canonical;
+          pickTagsFound++;
+          break;
+        }
+      }
+    }
+  });
+
+  log(`Found ${pickTagsFound} pick tags across ${posts.length} posts.`, 'ok');
+  setProgress(70);
+
+  // Step 3: Patch reviews.json
+  log('Patching reviews…', 'info');
+  let patched = 0;
+  const pickerCounts = {};
+
+  updatedReviews = reviews.map(r => {
+    const pick = pickMap[String(r.postId)];
+    if (pick) {
+      patched++;
+      pickerCounts[pick] = (pickerCounts[pick] || 0) + 1;
+      return { ...r, pick };
+    }
+    return r;
+  });
+
+  setProgress(95);
+  log(`Patched ${patched} reviews with pick data.`, 'ok');
+
+  // Show picker breakdown
+  Object.entries(pickerCounts).sort((a,b) => b[1]-a[1]).forEach(([name, count]) => {
+    log(`  ${name}: ${count} picks`, 'info');
+  });
+
+  const noPick = updatedReviews.filter(r => !r.pick).length;
+  log(`${noPick} reviews still without pick data.`, noPick > 700 ? 'warn' : 'info');
+
+  // Update stats
+  document.getElementById('statPatched').textContent = patched;
+  document.getElementById('statPickers').textContent = Object.keys(pickerCounts).length;
+  document.getElementById('statNoPick').textContent = noPick;
+  document.getElementById('stats').classList.add('visible');
+  document.getElementById('exportBtn').classList.add('visible');
+
+  setProgress(100);
+  log('Done! Download the updated reviews.json below.', 'ok');
+  btn.disabled = false;
+}
+
+async function fetchAllPosts() {
+  const posts = []; let offset = 0;
+  while (true) {
+    const r = await fetch(`/api/tumblr?offset=${offset}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const j = await r.json();
+    const b = j.response?.posts ?? [];
+    posts.push(...b);
+    setProgress(Math.min(55, posts.length * 0.09));
+    log(`  ${posts.length} posts fetched…`, 'info');
+    if (b.length < 50 || offset >= 700) break;
+    offset += 50;
+  }
+  return posts;
+}
+
+document.getElementById('exportBtn').onclick = () => {
+  const blob = new Blob([JSON.stringify(updatedReviews, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'reviews.json';
+  a.click();
+};
+</script>
+</body>
+</html>
