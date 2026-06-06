@@ -105,22 +105,32 @@ async function fetchAllPosts() {
 
 async function parseAllPosts(posts) {
   const out = []; const BS = 25;
+  const batches = [];
   for (let i = 0; i < posts.length; i += BS) {
-    const pct = 35 + Math.round((i / posts.length) * 55);
+    batches.push(posts.slice(i, i + BS));
+  }
+
+  // Run 4 batches at a time in parallel
+  const CONCURRENCY = 4;
+  for (let i = 0; i < batches.length; i += CONCURRENCY) {
+    const chunk = batches.slice(i, i + CONCURRENCY);
+    const pct = 35 + Math.round((i / batches.length) * 55);
     setProgress(pct);
-    log(`  Parsing ${i+1}–${Math.min(i+BS, posts.length)} of ${posts.length}…`, 'info');
-    out.push(...await parseBatch(posts.slice(i, i+BS)));
+    log(`  Parsing batches ${i+1}–${Math.min(i+CONCURRENCY, batches.length)} of ${batches.length}…`, 'info');
+
+    const results = await Promise.all(chunk.map(b => parseBatch(b)));
+    results.forEach(r => out.push(...r));
+    log(`  Got ${results.flat().length} records from this chunk`, results.flat().length > 0 ? 'ok' : 'warn');
   }
   return out;
 }
-
 async function parseBatch(posts) {
   const block = posts.map((p, i) => {
-    const text = (p.body||p.caption||p.summary||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,600);
+    const text = (p.body||p.caption||p.summary||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,1000);
     return `POST ${i+1} [id:${p.id} date:${(p.date||'').slice(0,10)} url:${p.post_url}]\n${text}`;
   }).join('\n\n---\n\n');
 
-  const prompt = `Parse these Tumblr music review posts from TheBolg. Each post typically has a bold album/artist title then paragraphs like "7.5 - review text -reviewer". Known reviewers: b, Jt, chres, Tom, Mike, Lola, Aaron, Tyler, Tim, Matt, Lisa.
+  const prompt = `Parse these Tumblr music review posts from TheBolg. Each post typically has a bold album/artist title then paragraphs like "7.5 - review text -reviewer". Known reviewers: b, Jt, chres, Tom (also signs as "Peck"), Mike, Lola, Aaron, Tyler (also signs as "Ty"), Tim, Matt, Lisa.
 
 For each POST return a JSON object:
 - postId: id from metadata
@@ -143,7 +153,18 @@ ${block}`;
     });
     const d = await res.json();
     return JSON.parse((d.answer||'[]').replace(/```json|```/g,'').trim());
-  } catch(e) { console.warn('batch failed', e); return []; }
+  } catch(e) {
+    console.warn('batch failed, retrying...', e);
+    await new Promise(r => setTimeout(r, 2000));
+    try {
+      const res2 = await fetch('/api/ask', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ rawPrompt: prompt })
+      });
+      const d2 = await res2.json();
+      return JSON.parse((d2.answer||'[]').replace(/```json|```/g,'').trim());
+    } catch(e2) { console.warn('retry also failed', e2); return []; }
+  }
 }
 
 function analyzeData(data) {
