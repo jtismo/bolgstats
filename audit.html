@@ -111,7 +111,7 @@ async function parseAllPosts(posts) {
   }
 
   // Run 3 batches at a time in parallel
-  const CONCURRENCY = 2;
+  const CONCURRENCY = 1;
   for (let i = 0; i < batches.length; i += CONCURRENCY) {
     const chunk = batches.slice(i, i + CONCURRENCY);
     const pct = 35 + Math.round((i / batches.length) * 55);
@@ -161,7 +161,7 @@ ${block}`;
     return JSON.parse((d.answer||'[]').replace(/```json|```/g,'').trim());
   } catch(e) {
     console.warn('batch failed, retrying...', e);
-    await new Promise(r => setTimeout(r, 2000));
+    await new Promise(r => setTimeout(r, 5000));
     try {
       const res2 = await fetch('/api/ask', {
         method: 'POST', headers: {'Content-Type':'application/json'},
