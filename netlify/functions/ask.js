@@ -39,13 +39,15 @@ export default async (req) => {
     const { question, posts, reviewerVoice, reviewerName } = body;
 
     const context = posts.map(r => {
-      const score = r.score != null ? `${r.score}/10` : 'unscored';
-      const pick = r.pick ? ` [${r.pick}'s pick]` : '';
-      return `${r.reviewer} | ${score}${pick} | "${r.album}" by ${r.artist} (${(r.date||'').slice(0,7)}): "${r.text}"`;
+      const score = r.score != null ? r.score : '?';
+      const pick = r.pick ? `[${r.pick}pick]` : '';
+      // Super compact: reviewer|score|album|artist|text (no labels, no quotes, no date)
+      return `${r.reviewer}|${score}${pick}|${r.album}|${r.artist}|${(r.text||'').slice(0,120)}`;
     }).join('\n');
 
-    const system = reviewerVoice ||
-      `You are a music analyst for TheBolg, a blog where friends review albums with scores out of 10. Be concise and witty.`;
+    const system = reviewerVoice
+      ? reviewerVoice + `\n\nArchive format: reviewer|score|album|artist|review_text. Use this data to answer questions.`
+      : `You are a music analyst for TheBolg, a blog where friends review albums with scores out of 10. Archive format: reviewer|score|album|artist|review_text. Be concise and witty.`;
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
