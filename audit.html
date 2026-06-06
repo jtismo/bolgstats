@@ -131,17 +131,22 @@ async function parseBatch(posts) {
     return `POST ${i+1} [id:${p.id} date:${(p.date||'').slice(0,10)} url:${p.post_url}]\n${text}`;
   }).join('\n\n---\n\n');
 
-  const prompt = `Parse these Tumblr music review posts from TheBolg. Each post typically has a bold album/artist title then paragraphs like "7.5 - review text -reviewer". Known reviewers: b, Jt, chres, Tom (also signs as "Peck"), Mike, Lola, Aaron, Tyler (also signs as "Ty"), Tim, Matt, Lisa.
+  const prompt = `Parse these Tumblr music review posts from TheBolg. Each post has a bold album/artist title then one or more review paragraphs formatted exactly like "7.5 - review text -reviewer".
+
+IMPORTANT REVIEWER RULES:
+- "Jt" or "JT" is ALWAYS Jt, never anyone else
+- "Peck" is Tom
+- "Ty" is Tyler  
+- Never confuse reviewer names — use the exact signature after the dash at the end
+- Known reviewers: b, Jt, chres, Tom, Mike, Lola, Aaron, Tyler, Tim, Matt, Lisa
+
+If a post has no score-based reviews (e.g. it's a playlist, article, interview, announcement, or "feature" post), set isReviewPost to false and return empty reviews array.
 
 For each POST return a JSON object:
-- postId: id from metadata
-- postUrl: url from metadata
-- date: from metadata
-- album: string or null
-- artist: string or null
-- reviews: array of { rawReviewer (exactly as written), normalizedReviewer (canonical name), score (number or null), hasScore (boolean), text (string) }
+- postId, postUrl, date, album, artist
+- reviews: array of { rawReviewer, normalizedReviewer, score, hasScore, text }
 - isReviewPost: boolean
-- issues: array of strings describing problems
+- issues: array of problem descriptions
 
 Return ONLY a raw JSON array, no markdown.
 
