@@ -133,7 +133,7 @@
     padding: 14px 16px;
     border-left: 3px solid #e05a1e;
     background: #ede7d9;
-    height: 90px;
+    height: 120px;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -430,41 +430,48 @@ function done() {
 }
 
 function startQuoteCycle() {
-  const quotes = [];
+  if (!POSTS.length) return;
+
+  const inner  = document.getElementById('archiveQuoteInner');
+  const textEl = document.getElementById('archiveQuoteText');
+  const attrEl = document.getElementById('archiveQuoteAttr');
+
+  // Build pool grouped by year
+  const byYear = {};
   POSTS.forEach(a => {
     (a.reviews||[]).forEach(r => {
-      if (r.text && r.text.length > 30 && r.text.length < 200) {
-        quotes.push({
-          text: r.text,
-          reviewer: r.reviewer,
-          score: r.score,
-          album: a.album,
-          artist: a.artist
-        });
-      }
+      if (!r.text || r.text.length < 30 || r.text.length > 220) return;
+      const y = a.year;
+      if (!byYear[y]) byYear[y] = [];
+      byYear[y].push({ text: r.text, reviewer: r.reviewer, score: r.score, album: a.album, artist: a.artist, year: y });
     });
   });
-  if (!quotes.length) return;
 
-  const inner   = document.getElementById('archiveQuoteInner');
-  const textEl  = document.getElementById('archiveQuoteText');
-  const attrEl  = document.getElementById('archiveQuoteAttr');
+  const availableYears = Object.keys(byYear).map(Number).sort();
+  const currentYear = new Date().getFullYear();
+  let lastKey = null;
 
-  let current = -1;
+  function pickQuote() {
+    const yearsAgo = Math.floor(Math.random() * 12) + 1;
+    const targetYear = currentYear - yearsAgo;
+    const closest = availableYears.reduce((a, b) =>
+      Math.abs(b - targetYear) < Math.abs(a - targetYear) ? b : a
+    );
+    const pool = byYear[closest];
+    let idx;
+    do { idx = Math.floor(Math.random() * pool.length); } while (pool.length > 1 && `${closest}-${idx}` === lastKey);
+    lastKey = `${closest}-${idx}`;
+    return { ...pool[idx], actualYearsAgo: currentYear - closest };
+  }
 
   function showQuote() {
-    // Pick a different random quote
-    let idx;
-    do { idx = Math.floor(Math.random() * quotes.length); } while (idx === current && quotes.length > 1);
-    current = idx;
-    const q = quotes[idx];
-
-    // Fade out
     inner.classList.add('hidden');
     setTimeout(() => {
+      const q = pickQuote();
       const score = q.score != null ? ` · ${q.score}` : '';
+      const label = q.actualYearsAgo === 1 ? '1 year ago today' : `${q.actualYearsAgo} years ago today`;
       textEl.textContent = `"${q.text}"`;
-      attrEl.textContent = `— ${q.reviewer}${score} on ${q.album} by ${q.artist}`;
+      attrEl.textContent = `${label} — ${q.reviewer}${score} on ${q.album} by ${q.artist}`;
       inner.classList.remove('hidden');
     }, 650);
   }

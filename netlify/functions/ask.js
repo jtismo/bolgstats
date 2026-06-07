@@ -46,7 +46,7 @@ export default async (req) => {
       ? data.map(a => {
           const pick = a.pick ? `[${a.pick}pick]` : '';
           const reviews = (a.reviews || []).map(r => {
-            const text = (r.text || '').slice(0, 100).replace(/\|/g, ' ');
+            const text = (r.text || '').slice(0, 60).replace(/\|/g, ' ');
             return `${r.reviewer}:${r.score ?? '?'}:${text}`;
           }).join(';');
           return `${a.album}|${a.artist}|${a.year}|${a.genre||''}|${pick}|avg:${a.avgScore??'?'}|${reviews}`;
@@ -69,7 +69,7 @@ export default async (req) => {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 500,
+        max_tokens: 600,
         system,
         messages: [{ role: 'user', content: `ARCHIVE (${albums.length} albums):\n${context}\n\nQUESTION: ${question}` }]
       })
