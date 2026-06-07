@@ -133,15 +133,26 @@
     padding: 14px 16px;
     border-left: 3px solid #e05a1e;
     background: #ede7d9;
-    animation: fadeIn 0.6s ease;
+    height: 90px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: hidden;
   }
-  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .archive-quote-inner {
+    transition: opacity 0.6s ease;
+  }
+  .archive-quote-inner.hidden { opacity: 0; }
   .archive-quote-text {
     display: block;
     font-family: 'Courier New', Courier, monospace;
     font-size: 13px;
     line-height: 1.6;
     color: #333;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
   }
   .archive-quote-attr {
     display: block;
@@ -192,8 +203,10 @@
   <div class="subhead">Ask anything about our collective music opinions.</div>
 
   <div class="archive-quote" id="archiveQuote" style="display:none">
-    <span class="archive-quote-text" id="archiveQuoteText"></span>
-    <span class="archive-quote-attr" id="archiveQuoteAttr"></span>
+    <div class="archive-quote-inner" id="archiveQuoteInner">
+      <span class="archive-quote-text" id="archiveQuoteText"></span>
+      <span class="archive-quote-attr" id="archiveQuoteAttr"></span>
+    </div>
   </div>
 
   <div class="status" id="status">Loading archive…</div>
@@ -417,32 +430,50 @@ function done() {
 }
 
 function startQuoteCycle() {
-  // Gather all reviews with text
   const quotes = [];
   POSTS.forEach(a => {
     (a.reviews||[]).forEach(r => {
       if (r.text && r.text.length > 30 && r.text.length < 200) {
-        quotes.push({ text: r.text, reviewer: r.reviewer, album: a.album, artist: a.artist });
+        quotes.push({
+          text: r.text,
+          reviewer: r.reviewer,
+          score: r.score,
+          album: a.album,
+          artist: a.artist
+        });
       }
     });
   });
   if (!quotes.length) return;
 
+  const el      = document.getElementById('archiveQuote');
+  const inner   = document.getElementById('archiveQuoteInner');
+  const textEl  = document.getElementById('archiveQuoteText');
+  const attrEl  = document.getElementById('archiveQuoteAttr');
+
+  let current = -1;
+
   function showQuote() {
-    const q = quotes[Math.floor(Math.random() * quotes.length)];
-    const el = document.getElementById('archiveQuote');
-    const textEl = document.getElementById('archiveQuoteText');
-    const attrEl = document.getElementById('archiveQuoteAttr');
-    el.style.display = 'none';
+    // Pick a different random quote
+    let idx;
+    do { idx = Math.floor(Math.random() * quotes.length); } while (idx === current && quotes.length > 1);
+    current = idx;
+    const q = quotes[idx];
+
+    // Fade out
+    inner.classList.add('hidden');
     setTimeout(() => {
+      const score = q.score != null ? ` · ${q.score}` : '';
       textEl.textContent = `"${q.text}"`;
-      attrEl.textContent = `— ${q.reviewer} on ${q.album}`;
-      el.style.display = 'block';
-    }, 100);
+      attrEl.textContent = `— ${q.reviewer}${score} on ${q.album} by ${q.artist}`;
+      el.style.display = 'flex';
+      // Fade in
+      inner.classList.remove('hidden');
+    }, 650);
   }
 
   showQuote();
-  setInterval(showQuote, 5000);
+  setInterval(showQuote, 30000);
 }
 function showErr(m) { const e=document.getElementById('errBox'); e.textContent=m; e.classList.add('visible'); }
 function strip(h) { return h.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim(); }
