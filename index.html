@@ -133,16 +133,34 @@
     padding: 14px 16px;
     border-left: 3px solid #e05a1e;
     background: #ede7d9;
-    height: 120px;
+    height: 150px;
     display: flex;
     flex-direction: column;
     justify-content: center;
     overflow: hidden;
+    cursor: pointer;
+    text-decoration: none;
+    display: block;
   }
+  .archive-quote:hover { background: #e8e2d4; }
   .archive-quote-inner {
     transition: opacity 0.6s ease;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
   .archive-quote-inner.hidden { opacity: 0; }
+  .archive-quote-label {
+    display: block;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    color: #e05a1e;
+    margin-bottom: 8px;
+  }
   .archive-quote-text {
     display: block;
     font-family: 'Courier New', Courier, monospace;
@@ -151,17 +169,16 @@
     color: #333;
     overflow: hidden;
     display: -webkit-box;
-    -webkit-line-clamp: 2;
+    -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
   }
   .archive-quote-attr {
     display: block;
     font-family: 'Courier New', Courier, monospace;
     font-size: 11px;
-    color: #e05a1e;
+    color: #777;
     margin-top: 6px;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.04em;
   }
 
   /* ── BOOT ── */
@@ -202,12 +219,13 @@
   <div class="headline">Query the<br>Archive.</div>
   <div class="subhead">Ask anything about our collective music opinions.</div>
 
-  <div class="archive-quote" id="archiveQuote">
+  <a class="archive-quote" id="archiveQuote" href="#" target="_blank" rel="noopener">
     <div class="archive-quote-inner" id="archiveQuoteInner">
+      <span class="archive-quote-label" id="archiveQuoteLabel">From the archive</span>
       <span class="archive-quote-text" id="archiveQuoteText">Loading archive…</span>
       <span class="archive-quote-attr" id="archiveQuoteAttr"></span>
     </div>
-  </div>
+  </a>
 
   <div class="status" id="status">Loading archive…</div>
 
@@ -443,7 +461,7 @@ function startQuoteCycle() {
       if (!r.text || r.text.length < 30 || r.text.length > 220) return;
       const y = a.year;
       if (!byYear[y]) byYear[y] = [];
-      byYear[y].push({ text: r.text, reviewer: r.reviewer, score: r.score, album: a.album, artist: a.artist, year: y });
+      byYear[y].push({ text: r.text, reviewer: r.reviewer, score: r.score, album: a.album, artist: a.artist, year: y, url: a.tumblrUrl || null });
     });
   });
 
@@ -469,9 +487,12 @@ function startQuoteCycle() {
     setTimeout(() => {
       const q = pickQuote();
       const score = q.score != null ? ` · ${q.score}` : '';
-      const label = q.actualYearsAgo === 1 ? '1 year ago today' : `${q.actualYearsAgo} years ago today`;
+      const yearsAgo = q.actualYearsAgo;
+      const label = yearsAgo === 1 ? '1 year ago today' : `${yearsAgo} years ago today`;
+      document.getElementById('archiveQuoteLabel').textContent = label;
       textEl.textContent = `"${q.text}"`;
-      attrEl.textContent = `${label} — ${q.reviewer}${score} on ${q.album} by ${q.artist}`;
+      attrEl.textContent = `— ${q.reviewer}${score} on ${q.album} by ${q.artist}`;
+      if (q.url) document.getElementById('archiveQuote').href = q.url;
       inner.classList.remove('hidden');
     }, 650);
   }

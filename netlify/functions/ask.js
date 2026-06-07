@@ -76,7 +76,8 @@ export default async (req) => {
     });
 
     const data = await response.json();
-    const text = data.content?.[0]?.text || `Error: ${JSON.stringify(data).slice(0,200)}`;
+    const text = (data.content||[]).map(c => c.text||'').join('').trim()
+      || (data.error ? `Error: ${data.error.message}` : 'No answer found.');
 
     return new Response(JSON.stringify({ answer: text }), {
       status: 200,
