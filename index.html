@@ -202,9 +202,9 @@
   <div class="headline">Query the<br>Archive.</div>
   <div class="subhead">Ask anything about our collective music opinions.</div>
 
-  <div class="archive-quote" id="archiveQuote" style="display:none">
+  <div class="archive-quote" id="archiveQuote">
     <div class="archive-quote-inner" id="archiveQuoteInner">
-      <span class="archive-quote-text" id="archiveQuoteText"></span>
+      <span class="archive-quote-text" id="archiveQuoteText">Loading archive…</span>
       <span class="archive-quote-attr" id="archiveQuoteAttr"></span>
     </div>
   </div>
@@ -446,7 +446,6 @@ function startQuoteCycle() {
   });
   if (!quotes.length) return;
 
-  const el      = document.getElementById('archiveQuote');
   const inner   = document.getElementById('archiveQuoteInner');
   const textEl  = document.getElementById('archiveQuoteText');
   const attrEl  = document.getElementById('archiveQuoteAttr');
@@ -466,14 +465,12 @@ function startQuoteCycle() {
       const score = q.score != null ? ` · ${q.score}` : '';
       textEl.textContent = `"${q.text}"`;
       attrEl.textContent = `— ${q.reviewer}${score} on ${q.album} by ${q.artist}`;
-      el.style.display = 'flex';
-      // Fade in
       inner.classList.remove('hidden');
     }, 650);
   }
 
   showQuote();
-  setInterval(showQuote, 30000);
+  setInterval(showQuote, 15000);
 }
 function showErr(m) { const e=document.getElementById('errBox'); e.textContent=m; e.classList.add('visible'); }
 function strip(h) { return h.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim(); }
