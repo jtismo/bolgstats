@@ -44,18 +44,20 @@ export default async (req) => {
       ? archive.map(a => {
           const pick = a.pick ? `[${a.pick}pick]` : '';
           const reviews = (a.reviews || []).map(r => {
-            const text = (r.text || '').slice(0, 60).replace(/\|/g, ' ');
+            const text = (r.text || '').replace(/\|/g, ' ');
             return `${r.reviewer}:${r.score ?? '?'}:${text}`;
           }).join(';');
           return `${a.album}|${a.artist}|${a.year}|${a.genre||''}|${pick}|avg:${a.avgScore??'?'}|${reviews}`;
         }).join('\n')
       : archive.map(r => {
-          return `${r.reviewer}|${r.score??'?'}|${r.album}|${r.artist}|${(r.text||'').slice(0,60)}`;
+          return `${r.reviewer}|${r.score??'?'}|${r.album}|${r.artist}|${(r.text||'')}`;
         }).join('\n');
 
+    const antiAI = `\n\nCRITICAL RULES: Write exactly as this person would speak. No markdown. No asterisks. No bullet points. No blockquotes. No "Looking through..." or "Let me find..." or any AI-style hedging. No labels like "Close second:" or "Winner:". Just talk. Short sentences. One paragraph. Sound like a person texting their friend about music, not an AI writing a report.`;
+
     const system = reviewerVoice
-      ? reviewerVoice + `\n\nArchive format: album|artist|year|genre|[picker]|avgScore|reviewer:score:text;... Picks = who chose the album for the group.`
-      : `You are a music analyst for TheBolg, a music blog where friends review albums with scores out of 10. Archive format: album|artist|year|genre|[picker]|avgScore|reviewer:score:text;... Be concise and witty.`;
+      ? reviewerVoice + `\n\nArchive format: album|artist|year|genre|[picker]|avgScore|reviewer:score:fullReviewText;...` + antiAI
+      : `You are a music analyst for TheBolg, a music blog where friends review albums with scores out of 10. Archive format: album|artist|year|genre|[picker]|avgScore|reviewer:score:fullReviewText;...` + antiAI;
 
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
