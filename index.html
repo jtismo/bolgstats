@@ -128,6 +128,31 @@
 
   .status { font-family: 'Courier New', Courier, monospace; font-size: 12px; color: #999; margin-bottom: 20px; }
 
+  .archive-quote {
+    margin-bottom: 20px;
+    padding: 14px 16px;
+    border-left: 3px solid #e05a1e;
+    background: #ede7d9;
+    animation: fadeIn 0.6s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .archive-quote-text {
+    display: block;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #333;
+  }
+  .archive-quote-attr {
+    display: block;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 11px;
+    color: #e05a1e;
+    margin-top: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
   /* ── BOOT ── */
   #boot {
     position: fixed; inset: 0; background: #f5f0e8; z-index: 999;
@@ -166,6 +191,11 @@
   <div class="headline">Query the<br>Archive.</div>
   <div class="subhead">Ask anything about our collective music opinions.</div>
 
+  <div class="archive-quote" id="archiveQuote" style="display:none">
+    <span class="archive-quote-text" id="archiveQuoteText"></span>
+    <span class="archive-quote-attr" id="archiveQuoteAttr"></span>
+  </div>
+
   <div class="status" id="status">Loading archive…</div>
 
   <input class="search-input" id="q" type="text"
@@ -201,7 +231,7 @@
 <script>
 const BLOG = 'thebolg';
 const TUMBLR_KEY = 'BRqwhfZWyoRss6ax8Gbb4UrijPqO1aedOzYsVQfpIm23h9nmvU';
-const CKEY = 'thebolg_reviews_v1';
+const CKEY = 'thebolg_albums_v1';
 const TTL  = 60 * 60 * 1000;
 
 let POSTS = [];
@@ -347,10 +377,7 @@ async function ask() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         question,
-        posts: POSTS.map(r => ({
-          album: r.album, artist: r.artist, reviewer: r.reviewer,
-          score: r.score, text: r.text, date: r.date, pick: r.pick, type: r.type
-        })),
+        albums: POSTS,
         reviewerVoice: currentReviewer.voice,
         reviewerName: currentReviewer.name
       })
@@ -385,8 +412,38 @@ function bMsg(m,pct) { document.getElementById('bootMsg').textContent=m; documen
 function done() {
   const b=document.getElementById('boot'); b.classList.add('out');
   setTimeout(()=>b.style.display='none',400);
-  document.getElementById('status').textContent = `${POSTS.length} reviews in the archive.`;
+  document.getElementById('status').textContent = `${POSTS.length} albums · ${POSTS.reduce((s,a)=>s+(a.reviews||[]).length,0)} reviews in the archive.`;
   document.getElementById('askBtn').disabled = false;
+  startQuoteCycle();
+}
+
+function startQuoteCycle() {
+  // Gather all reviews with text
+  const quotes = [];
+  POSTS.forEach(a => {
+    (a.reviews||[]).forEach(r => {
+      if (r.text && r.text.length > 30 && r.text.length < 200) {
+        quotes.push({ text: r.text, reviewer: r.reviewer, album: a.album, artist: a.artist });
+      }
+    });
+  });
+  if (!quotes.length) return;
+
+  function showQuote() {
+    const q = quotes[Math.floor(Math.random() * quotes.length)];
+    const el = document.getElementById('archiveQuote');
+    const textEl = document.getElementById('archiveQuoteText');
+    const attrEl = document.getElementById('archiveQuoteAttr');
+    el.style.display = 'none';
+    setTimeout(() => {
+      textEl.textContent = `"${q.text}"`;
+      attrEl.textContent = `— ${q.reviewer} on ${q.album}`;
+      el.style.display = 'block';
+    }, 100);
+  }
+
+  showQuote();
+  setInterval(showQuote, 5000);
 }
 function showErr(m) { const e=document.getElementById('errBox'); e.textContent=m; e.classList.add('visible'); }
 function strip(h) { return h.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim(); }

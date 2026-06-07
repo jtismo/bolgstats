@@ -12,7 +12,7 @@ export default async (req) => {
   try {
     const body = await req.json();
 
-    // Audit mode: raw prompt passed directly
+    // Audit mode
     if (body.rawPrompt) {
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -35,19 +35,23 @@ export default async (req) => {
       });
     }
 
-    // Normal search mode
-    const { question, posts, reviewerVoice, reviewerName } = body;
+    // Normal search mode — albums is the new grouped structure
+    const { question, albums, reviewerVoice } = body;
 
-    const context = posts.map(r => {
-      const score = r.score != null ? r.score : '?';
-      const pick = r.pick ? `[${r.pick}pick]` : '';
-      // Super compact: reviewer|score|album|artist|text (no labels, no quotes, no date)
-      return `${r.reviewer}|${score}${pick}|${r.album}|${r.artist}|${(r.text||'').slice(0,120)}`;
+    // Build compact context from album-grouped data
+    // Format: album|artist|year|genre|pick|avgScore|reviewer:score:text,...
+    const context = albums.map(a => {
+      const pick = a.pick ? `[${a.pick}pick]` : '';
+      const reviews = (a.reviews || []).map(r => {
+        const text = (r.text || '').slice(0, 100).replace(/\|/g, ' ');
+        return `${r.reviewer}:${r.score ?? '?'}:${text}`;
+      }).join(';');
+      return `${a.album}|${a.artist}|${a.year}|${a.genre||''}|${pick}|avg:${a.avgScore??'?'}|${reviews}`;
     }).join('\n');
 
     const system = reviewerVoice
-      ? reviewerVoice + `\n\nArchive format: reviewer|score|album|artist|review_text. Use this data to answer questions.`
-      : `You are a music analyst for TheBolg, a blog where friends review albums with scores out of 10. Archive format: reviewer|score|album|artist|review_text. Be concise and witty.`;
+      ? reviewerVoice + `\n\nArchive format per line: album|artist|year|genre|[picker]|avgScore|reviewer:score:reviewText;... Use this to answer questions. Picks mean that reviewer chose the album for the group to review.`
+      : `You are a music analyst for TheBolg, a music blog where friends review albums with scores out of 10. Archive format per line: album|artist|year|genre|[picker]|avgScore|reviewer:score:reviewText;... Picks mean that reviewer chose the album for the group to review. Be concise and witty.`;
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -58,9 +62,9 @@ export default async (req) => {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 400,
+        max_tokens: 500,
         system,
-        messages: [{ role: 'user', content: `ARCHIVE POSTS:\n${context}\n\nQUESTION: ${question}` }]
+        messages: [{ role: 'user', content: `ARCHIVE (${albums.length} albums):\n${context}\n\nQUESTION: ${question}` }]
       })
     });
 
