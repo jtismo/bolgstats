@@ -389,9 +389,8 @@ async function ask() {
     txt.textContent = d.answer || 'No answer found.';
     box.classList.add('visible');
 
-    // Rotate placeholder after each search
+    // Rotate placeholder after each search but keep the question visible
     rotatePlaceholder();
-    document.getElementById('q').value = '';
   } catch(e) {
     txt.textContent = `Error: ${e.message}`;
     box.classList.add('visible');

@@ -36,18 +36,25 @@ export default async (req) => {
     }
 
     // Normal search mode — albums is the new grouped structure
-    const { question, albums, reviewerVoice } = body;
+    const { question, albums, posts, reviewerVoice } = body;
 
-    // Build compact context from album-grouped data
-    // Format: album|artist|year|genre|pick|avgScore|reviewer:score:text,...
-    const context = albums.map(a => {
-      const pick = a.pick ? `[${a.pick}pick]` : '';
-      const reviews = (a.reviews || []).map(r => {
-        const text = (r.text || '').slice(0, 100).replace(/\|/g, ' ');
-        return `${r.reviewer}:${r.score ?? '?'}:${text}`;
-      }).join(';');
-      return `${a.album}|${a.artist}|${a.year}|${a.genre||''}|${pick}|avg:${a.avgScore??'?'}|${reviews}`;
-    }).join('\n');
+    // Handle both old flat format (posts) and new grouped format (albums)
+    const data = albums || posts || [];
+    const isGrouped = data.length > 0 && Array.isArray(data[0].reviews);
+
+    const context = isGrouped
+      ? data.map(a => {
+          const pick = a.pick ? `[${a.pick}pick]` : '';
+          const reviews = (a.reviews || []).map(r => {
+            const text = (r.text || '').slice(0, 100).replace(/\|/g, ' ');
+            return `${r.reviewer}:${r.score ?? '?'}:${text}`;
+          }).join(';');
+          return `${a.album}|${a.artist}|${a.year}|${a.genre||''}|${pick}|avg:${a.avgScore??'?'}|${reviews}`;
+        }).join('\n')
+      : data.map(r => {
+          const score = r.score != null ? r.score : '?';
+          return `${r.reviewer}|${score}|${r.album}|${r.artist}|${(r.text||'').slice(0,100)}`;
+        }).join('\n');
 
     const system = reviewerVoice
       ? reviewerVoice + `\n\nArchive format per line: album|artist|year|genre|[picker]|avgScore|reviewer:score:reviewText;... Use this to answer questions. Picks mean that reviewer chose the album for the group to review.`
