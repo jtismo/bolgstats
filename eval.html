@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light only">
+<title>BolgStats Eval</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #f5f0e8; font-family: 'Courier New', monospace; font-size: 13px; color: #000; padding: 20px; }
+  h1 { font-size: 22px; font-weight: 900; text-transform: uppercase; margin-bottom: 4px; }
+  h1 span { color: #e05a1e; }
+  .sub { color: #777; font-size: 12px; margin-bottom: 20px; }
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .btn { padding: 10px 20px; background: #e05a1e; color: #fff; border: 3px solid #000; font-family: 'Courier New', monospace; font-size: 13px; font-weight: 700; text-transform: uppercase; cursor: pointer; box-shadow: 4px 4px 0 #000; }
+  .btn:hover { box-shadow: 6px 6px 0 #000; transform: translate(-1px,-1px); }
+  .btn:disabled { background: #aaa; cursor: not-allowed; transform: none; box-shadow: 4px 4px 0 #000; }
+  .btn.secondary { background: #000; }
+  .progress { width: 100%; height: 4px; background: #ddd; margin-bottom: 12px; }
+  .progress-fill { height: 100%; background: #e05a1e; transition: width 0.3s; }
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px; }
+  .stat { background: #fff; border: 2px solid #000; padding: 10px; text-align: center; }
+  .stat-val { font-size: 22px; font-weight: 900; }
+  .stat-val.good { color: #2a7a2a; }
+  .stat-val.warn { color: #e05a1e; }
+  .stat-val.bad { color: #c00; }
+  .stat-label { font-size: 11px; color: #777; text-transform: uppercase; letter-spacing: 0.1em; }
+  .result { border: 3px solid #000; background: #fff; padding: 12px; margin-bottom: 8px; }
+  .result.pass { border-left: 8px solid #2a7a2a; }
+  .result.fail { border-left: 8px solid #c00; }
+  .result.warn { border-left: 8px solid #e05a1e; }
+  .result.pending { opacity: 0.5; }
+  .result-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
+  .question { font-size: 11px; color: #777; flex: 1; }
+  .badge { font-size: 11px; padding: 2px 8px; font-weight: 700; text-transform: uppercase; }
+  .badge.reviewer { background: #e05a1e; color: #fff; }
+  .badge.pass { background: #2a7a2a; color: #fff; }
+  .badge.fail { background: #c00; color: #fff; }
+  .badge.warn { background: #e05a1e; color: #fff; }
+  .badge.pending { background: #aaa; color: #fff; }
+  .answer { line-height: 1.6; margin-bottom: 4px; }
+  .flags { display: flex; gap: 4px; flex-wrap: wrap; }
+  .flag { font-size: 10px; padding: 1px 6px; background: #fce8e8; color: #c00; border: 1px solid #c00; }
+  .status-line { font-size: 12px; color: #777; margin-bottom: 12px; }
+</style>
+</head>
+<body>
+
+<h1>Bolg<span>Stats</span> Eval</h1>
+<div class="sub">Tests all reviewer voices against standard questions. Keep this URL private.</div>
+
+<div class="controls">
+  <button class="btn" id="runBtn" onclick="runAll()">▶ Run All Tests</button>
+  <button class="btn secondary" id="retryBtn" onclick="retryFailed()" disabled>↺ Retry Failed</button>
+  <button class="btn secondary" onclick="clearAll()">✕ Clear</button>
+</div>
+
+<div class="progress"><div class="progress-fill" id="pFill" style="width:0%"></div></div>
+<div class="status-line" id="statusLine">Ready — 12 tests across 9 reviewers</div>
+
+<div class="stats-row">
+  <div class="stat"><div class="stat-val" id="sPass">—</div><div class="stat-label">Passed</div></div>
+  <div class="stat"><div class="stat-val" id="sWarn">—</div><div class="stat-label">Warnings</div></div>
+  <div class="stat"><div class="stat-val" id="sFail">—</div><div class="stat-label">Failed</div></div>
+  <div class="stat"><div class="stat-val" id="sPend">—</div><div class="stat-label">Pending</div></div>
+</div>
+
+<div id="results"></div>
+
+<script>
+const TESTS = [
+  { q: "who's picks have the highest average score?", reviewer: 'b', type: 'factual' },
+  { q: "what genre gets the highest scores on average?", reviewer: 'Jt', type: 'factual' },
+  { q: "who gives the harshest scores?", reviewer: 'Lola', type: 'factual' },
+  { q: "what's the highest rated album?", reviewer: 'Tim', type: 'factual' },
+  { q: "how many albums did we review in 2020?", reviewer: 'Matt', type: 'factual' },
+  { q: "who has reviewed the most albums?", reviewer: 'chres', type: 'factual' },
+  { q: "what's the funniest review?", reviewer: 'Tom', type: 'qualitative' },
+  { q: "what's the most underrated album in the archive?", reviewer: 'chres', type: 'qualitative' },
+  { q: "what's the best hip hop album in the archive?", reviewer: 'Lisa', type: 'qualitative' },
+  { q: "which reviewer agrees with Jt the most?", reviewer: 'Tom', type: 'qualitative' },
+  { q: "what did b say about Prince?", reviewer: 'Aaron', type: 'reviewer' },
+  { q: "what's chres's weirdest review?", reviewer: 'Jt', type: 'reviewer' },
+];
+
+const VOICES = {
+  b: `You are b. One sentence only — dense, specific, poetic. Never more than one sentence. Real examples: "colorful energy mixed with expert songcraft and an unyielding sexual pulse" — "a puzzle missing four crucial pieces that you're trying to put together with your hands tied behind your back" — "i can't even." ONE SENTENCE. Done.`,
+  Jt: `You are Jt. Two sentences max. Always connect to something specific from your suburban dad life — a concert from the 90s, turkey hunting, family movie night. Then land a real musical observation. Example: "In 1993, The Flaming Lips was the first live music experience without my parents I ever had and because of that they are locked into the like category even as they drift farther into a drug dream saga." That's the move.`,
+  chres: `You are chres. Exactly one sentence. Always unexpected and specific. Real examples: "avoid chomping on slate" — "almost 1" — "sit at night under a relatively bright moon when lilacs are in bloom, and sip slowly on the spirit of your choice with a couple cubes in the glass" — "on a standard sized sheet of white uncreased printer paper, there are two horizontal purple parallel lines 2/3 of the way toward the top". ONE sentence. Never explain. Never elaborate.`,
+  Tom: `You are Tom. One or two sentences, maximum. Completely direct. Real examples: "A shell with no nuts inside." — "By turns utterly dumb and annoyingly brash, this album is one to be forgotten." — "This is future music, inventive, bewitching, and sublime." Say the thing. Nothing else.`,
+  Lola: `You are Lola. Two or three sentences. Bring context nobody else brings — where you were, what was happening culturally. Real example: "This felt like the mid 90s stopping through a stranger's spot on the way to a night at the Record Room at First Ave, the little apartment filled with smoke, beats, and rhymes from the future." Specific. Alive. No hedging.`,
+  Aaron: `You are Aaron. Two sentences. Genuine enthusiasm, zero irony. Real examples: "This album is a modern masterpiece that exposes the vulnerabilities of a black, gay man in the hip hop industry." You mean everything you say.`,
+  Tim: `You are Tim. One or two sentences. Literary and precise. Real examples: "As devastating an album as there is, and in its desolation I keep finding a first aid kit." — "Blood Orange's portrayal of community and place once again leaves me feeling safe when there is so much around that makes me feel otherwise." Be specific. Be felt.`,
+  Matt: `You are Matt. One sentence only. The single image or comparison that makes everything click. Real examples: "Every pull of the slot machine handle brings a mix of beautiful, silly, noisy, heartbreaking creativity." — "I bet a lot of the people who were in my Catholic school choir would really enjoy this album." One sentence. Done.`,
+  Lisa: `You are Lisa. One or two sentences. Describe through physical sensation. Real example: "This album is like a flitting wren delicately whispering into my ear, tickling the little hairs of my body, but then I just want it to stop cuz it's like a BIRD flying right by my head!" That specific. That physical.`,
+};
+
+const AI_PHRASES = ["looking at", "let me ", "let's look", "based on the", "from what i can see",
+  "scanning through", "going through", "i need to", "systematically", "in summary",
+  "in conclusion", "to answer your", "according to", "it appears that", "it seems that"];
+const AI_MARKUP = ["**", "## ", "- ", "* ", "\n1.", "\n2."];
+const ONE_SENT = ['b','chres','Matt'];
+const TWO_SENT = ['Jt','Tom','Tim','Lisa','Aaron'];
+
+let results = [];
+let archive = [];
+let running = false;
+
+async function loadArchive() {
+  if (archive.length) return true;
+  try {
+    const r = await fetch('/reviews.json');
+    archive = await r.json();
+    return true;
+  } catch(e) { return false; }
+}
+
+function check(answer, reviewer) {
+  const flags = [];
+  if (!answer || answer.toLowerCase().includes('no answer') || answer.toLowerCase().includes('error')) {
+    return ['EMPTY / API ERROR'];
+  }
+  const lower = answer.toLowerCase();
+  const sentences = answer.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 4);
+
+  if (ONE_SENT.includes(reviewer) && sentences.length > 2)
+    flags.push(`TOO LONG: ${sentences.length} sentences (want 1)`);
+  else if (TWO_SENT.includes(reviewer) && sentences.length > 4)
+    flags.push(`TOO LONG: ${sentences.length} sentences (want 2)`);
+
+  const foundPhrase = AI_PHRASES.find(p => lower.includes(p));
+  if (foundPhrase) flags.push(`AI PHRASE: "${foundPhrase}"`);
+
+  const foundMarkup = AI_MARKUP.find(m => answer.includes(m));
+  if (foundMarkup) flags.push(`MARKDOWN: "${foundMarkup.trim()}"`);
+
+  return flags;
+}
+
+async function runTest(test) {
+  const res = await fetch('/api/ask', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      question: test.q,
+      albums: archive,
+      reviewerVoice: VOICES[test.reviewer] || VOICES.b,
+      reviewerName: test.reviewer
+    })
+  });
+  const d = await res.json();
+  return d.answer || 'No answer found.';
+}
+
+async function runAll() {
+  if (running) return;
+  running = true;
+  document.getElementById('runBtn').disabled = true;
+  document.getElementById('retryBtn').disabled = true;
+  document.getElementById('statusLine').textContent = 'Loading archive…';
+
+  if (!await loadArchive()) {
+    document.getElementById('statusLine').textContent = 'Failed to load reviews.json';
+    running = false;
+    document.getElementById('runBtn').disabled = false;
+    return;
+  }
+
+  results = TESTS.map(t => ({ test: t, answer: '', status: 'pending', flags: [] }));
+  renderResults();
+
+  for (let i = 0; i < TESTS.length; i++) {
+    document.getElementById('statusLine').textContent = `Testing ${i+1} of ${TESTS.length}…`;
+    document.getElementById('pFill').style.width = `${((i+1)/TESTS.length)*100}%`;
+    try {
+      const answer = await runTest(TESTS[i]);
+      const flags = check(answer, TESTS[i].reviewer);
+      results[i] = { test: TESTS[i], answer, flags, status: flags.length ? (flags[0].includes('ERROR') ? 'fail' : 'warn') : 'pass' };
+    } catch(e) {
+      results[i] = { test: TESTS[i], answer: `Error: ${e.message}`, flags: ['API ERROR'], status: 'fail' };
+    }
+    renderResults();
+    if (i < TESTS.length - 1) await new Promise(r => setTimeout(r, 1200));
+  }
+
+  const pass = results.filter(r=>r.status==='pass').length;
+  document.getElementById('statusLine').textContent = `Done — ${pass}/${results.length} passed`;
+  document.getElementById('runBtn').disabled = false;
+  document.getElementById('retryBtn').disabled = results.every(r=>r.status==='pass');
+  running = false;
+}
+
+async function retryFailed() {
+  if (running) return;
+  running = true;
+  document.getElementById('runBtn').disabled = true;
+  document.getElementById('retryBtn').disabled = true;
+  const toRetry = results.map((r,i) => ({...r, i})).filter(r => r.status !== 'pass');
+  for (let j = 0; j < toRetry.length; j++) {
+    const {test, i} = toRetry[j];
+    document.getElementById('statusLine').textContent = `Retrying ${j+1} of ${toRetry.length}…`;
+    try {
+      const answer = await runTest(test);
+      const flags = check(answer, test.reviewer);
+      results[i] = { test, answer, flags, status: flags.length ? (flags[0].includes('ERROR') ? 'fail' : 'warn') : 'pass' };
+    } catch(e) {
+      results[i] = { test, answer: `Error: ${e.message}`, flags: ['API ERROR'], status: 'fail' };
+    }
+    renderResults();
+    if (j < toRetry.length - 1) await new Promise(r => setTimeout(r, 1200));
+  }
+  const pass = results.filter(r=>r.status==='pass').length;
+  document.getElementById('statusLine').textContent = `Done — ${pass}/${results.length} passed`;
+  document.getElementById('runBtn').disabled = false;
+  document.getElementById('retryBtn').disabled = results.every(r=>r.status==='pass');
+  running = false;
+}
+
+function clearAll() {
+  results = [];
+  document.getElementById('pFill').style.width = '0%';
+  document.getElementById('statusLine').textContent = 'Ready — 12 tests across 9 reviewers';
+  ['sPass','sWarn','sFail','sPend'].forEach(id => {
+    document.getElementById(id).textContent = '—';
+    document.getElementById(id).className = 'stat-val';
+  });
+  document.getElementById('results').innerHTML = '';
+  document.getElementById('retryBtn').disabled = true;
+}
+
+function renderResults() {
+  const pass = results.filter(r=>r.status==='pass').length;
+  const warn = results.filter(r=>r.status==='warn').length;
+  const fail = results.filter(r=>r.status==='fail').length;
+  const pend = results.filter(r=>r.status==='pending').length;
+  document.getElementById('sPass').textContent = pass; document.getElementById('sPass').className = `stat-val ${pass>0?'good':''}`;
+  document.getElementById('sWarn').textContent = warn; document.getElementById('sWarn').className = `stat-val ${warn>0?'warn':''}`;
+  document.getElementById('sFail').textContent = fail; document.getElementById('sFail').className = `stat-val ${fail>0?'bad':''}`;
+  document.getElementById('sPend').textContent = pend; document.getElementById('sPend').className = 'stat-val';
+
+  document.getElementById('results').innerHTML = results.map(r => `
+    <div class="result ${r.status}">
+      <div class="result-top">
+        <div class="question">${r.test.q}</div>
+        <span class="badge reviewer">${r.test.reviewer}</span>
+        <span class="badge ${r.status}">${r.status}</span>
+      </div>
+      <div class="answer">${r.answer || '…'}</div>
+      ${r.flags&&r.flags.length ? `<div class="flags">${r.flags.map(f=>`<span class="flag">${f}</span>`).join('')}</div>` : ''}
+    </div>
+  `).join('');
+}
+</script>
+</body>
+</html>
