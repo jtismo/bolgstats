@@ -457,11 +457,11 @@ async function ask() {
     const answer = d.answer || '';
     const name = currentReviewer.name;
     if (answer.includes('credit balance') || answer.includes('too low')) {
-      txt.textContent = creditErrors[name] || 'out of API credits.';
+      txt.textContent = `${creditErrors[name] || 'out of API credits.'} (billing error — add credits at console.anthropic.com)`;
     } else if (answer.includes('rate limit') || answer.includes('50,000')) {
-      txt.textContent = rateLimitErrors[name] || 'try again in a minute.';
+      txt.textContent = `${rateLimitErrors[name] || 'try again in a minute.'} (rate limit — wait 60 seconds)`;
     } else if (!answer || answer === 'No answer found.') {
-      txt.textContent = noAnswerErrors[name] || 'no answer found — try rephrasing.';
+      txt.textContent = `${noAnswerErrors[name] || 'no answer found — try rephrasing.'} (no result)`;
     } else {
       txt.textContent = answer;
     }
