@@ -1,3 +1,4 @@
+
 export default async (req) => {
   const cors = {
     'Access-Control-Allow-Origin': '*',
@@ -24,7 +25,13 @@ export default async (req) => {
     const archive = albums || posts || [];
     const isGrouped = archive.length > 0 && Array.isArray(archive[0].reviews);
 
-    // logging removed — @netlify/blobs not available on this plan
+    // ── LOG QUERY ─────────────────────────────────────────────────────────
+    try {
+      const store = getStore('queries');
+      await store.setJSON(`q_${Date.now()}_${Math.random().toString(36).slice(2,7)}`, {
+        question, reviewer: reviewerName || 'unknown', timestamp: new Date().toISOString()
+      });
+    } catch(e) { console.warn('Log failed:', e.message); }
 
     // ── PRE-CALCULATE STATS ───────────────────────────────────────────────
     const normGenre = g => {
