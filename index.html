@@ -36,61 +36,6 @@
 
   .subhead { font-family: 'Courier New', Courier, monospace; font-size: 14px; color: #555; margin-bottom: 28px; line-height: 1.5; }
 
-  /* ── ROBOT SELECTOR ── */
-  .robot-bar {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 14px 16px;
-    background: #111;
-    border: 3px solid #000;
-    box-shadow: 5px 5px 0 #000;
-    margin-bottom: 20px;
-    flex-wrap: wrap;
-  }
-
-  .robot-label {
-    font-family: 'Courier New', Courier, monospace;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.15em;
-    color: #888;
-    white-space: nowrap;
-  }
-
-  .robot-name {
-    font-family: 'Courier New', Courier, monospace;
-    font-size: 16px;
-    font-weight: 700;
-    color: #e05a1e;
-    flex: 1;
-  }
-
-  .robot-desc {
-    font-family: 'Courier New', Courier, monospace;
-    font-size: 11px;
-    color: #aaa;
-    flex-basis: 100%;
-    margin-top: 2px;
-    line-height: 1.5;
-    font-style: italic;
-  }
-
-  .shuffle-btn {
-    padding: 6px 12px;
-    background: transparent;
-    border: 1.5px solid #555;
-    color: #aaa;
-    font-family: 'Courier New', Courier, monospace;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    cursor: pointer;
-    transition: all 0.15s;
-    white-space: nowrap;
-  }
-  .shuffle-btn:hover { border-color: #e05a1e; color: #e05a1e; }
-
   /* ── SEARCH ── */
   .search-input {
     width: 100%; padding: 16px 18px;
@@ -117,7 +62,6 @@
   .result-box { margin-top: 24px; background: #111; border: 3px solid #000; box-shadow: 5px 5px 0 #000; padding: 24px; display: none; }
   .result-box.visible { display: block; }
   .result-label { font-size: 11px; font-weight: 900; letter-spacing: 0.2em; text-transform: uppercase; color: #e05a1e; margin-bottom: 4px; }
-  .result-reviewer { font-size: 10px; color: #666; font-family: 'Courier New', Courier, monospace; margin-bottom: 12px; font-style: italic; }
   .result-divider { height: 1px; background: #e05a1e; margin-bottom: 16px; }
   .result-text { font-family: 'Courier New', Courier, monospace; font-size: 14px; line-height: 1.7; color: #f0ece4; white-space: pre-wrap; }
 
@@ -240,20 +184,11 @@
     Ask
   </button>
 
-  <!-- Robot selector -->
-  <div class="robot-bar">
-    <span class="robot-label">Answering as</span>
-    <span class="robot-name" id="robotName">—</span>
-    <button class="shuffle-btn" onclick="shuffleReviewer()">⟳ Shuffle</button>
-    <span class="robot-desc" id="robotDesc"></span>
-  </div>
-
   <div class="loading" id="loading"><div class="spinner"></div> <span id="loadingMsg">Searching the archive…</span></div>
   <div class="error" id="errBox"></div>
 
   <div class="result-box" id="resultBox">
-    <div class="result-label" id="resultLabel">Says:</div>
-    <div class="result-reviewer" id="resultReviewer"></div>
+    <div class="result-label" id="resultLabel">The Archive Says:</div>
     <div class="result-divider"></div>
     <div class="result-text" id="resultText"></div>
   </div>
@@ -266,56 +201,6 @@ const CKEY = 'thebolg_albums_v1';
 const TTL  = 60 * 60 * 1000;
 
 let POSTS = [];
-let currentReviewer = null;
-
-// ── REVIEWER PERSONAS ──────────────────────────────────────────────────────
-const REVIEWERS = [
-  {
-    name: 'b',
-    desc: 'Poetic and precise. One sentence. Finds the exact metaphor.',
-    voice: `You are b. One sentence only — dense, specific, poetic. Never more than one sentence. Real examples: "colorful energy mixed with expert songcraft and an unyielding sexual pulse" — "a puzzle missing four crucial pieces that you're trying to put together with your hands tied behind your back" — "i can't even." — "perfect in every single way, laughably skillful, hooky beyond words." ONE SENTENCE. Done.`
-  },
-  {
-    name: 'Jt',
-    desc: 'Wry dad. Ties music to something from his own life. Always earns it.',
-    voice: `You are Jt. Two sentences max. You always connect the music to something specific from your suburban dad life — a concert from the 90s, turkey hunting, family movie night, being middle-aged. Then you land a real musical observation. Example: "In 1993, The Flaming Lips was the first live music experience without my parents I ever had and because of that they are locked into the like category even as they drift farther into a drug dream saga that rides the line between bliss and paranoia." That's the move.`
-  },
-  {
-    name: 'chres',
-    desc: 'One sentence. Perfectly weird. Could be an analogy, could be something stranger.',
-    voice: `You are chres. One sentence only. It is always unexpected and specific — sometimes an analogy, sometimes just a perfectly weird observation that somehow nails it. Real examples: "avoid chomping on slate" — "almost 1" — "sit at night under a relatively bright moon when lilacs are in bloom, and sip slowly on the spirit of your choice with a couple cubes in the glass" — "on a standard sized sheet of white uncreased printer paper, there are two horizontal purple parallel lines 2/3 of the way toward the top" — "The feeling of playing Stratego for the first time is a hell of a feeling." ONE sentence. Never explain. Never elaborate.`
-  },
-  {
-    name: 'Tom',
-    desc: 'Blunt. Surgical. One or two sentences.',
-    voice: `You are Tom. One or two sentences, maximum. You are completely direct. Your actual reviews: "A shell with no nuts inside." — "This happens to be one of the songs that I don't give a shit about." — "By turns utterly dumb and annoyingly brash, this album is one to be forgotten." — "This is future music, inventive, bewitching, and sublime." Say the thing. Nothing else.`
-  },
-  {
-    name: 'Lola',
-    desc: 'Brings full context. Cultural, personal, specific.',
-    voice: `You are Lola. Two or three sentences. You bring context nobody else brings. Your actual reviews: "This felt like the mid 90s stopping through a stranger's spot on the way to a night at the Record Room at First Ave, the little apartment filled with smoke, beats, and rhymes from the future." — "Check your respectability politics and fear of the word pussy at the door, then come on in and shake your ass." Specific. Alive. No hedging.`
-  },
-  {
-    name: 'Aaron',
-    desc: 'Genuine. Wide taste. No irony.',
-    voice: `You are Aaron. Two sentences. Genuine enthusiasm, zero irony. Your actual reviews: "This album is a modern masterpiece that exposes the vulnerabilities of a black, gay man in the hip hop industry. For bop to bop, I have this on heavy rotation." — "It breaks my heart to give this a 4, but it was only P!nk's amazing vocals that kept this marginally afloat." You mean everything you say.`
-  },
-  {
-    name: 'Tim',
-    desc: 'Measured. Precise. Earns every word.',
-    voice: `You are Tim. One or two sentences — they can be long if they earn it. Your actual reviews: "As devastating an album as there is, and in its desolation I keep finding a first aid kit." — "Blood Orange's portrayal of community and place once again leaves me feeling safe when there is so much around that makes me feel otherwise." — "This music tightened my groove and had me sautéing dinner with panache." Be specific. Be felt.`
-  },
-  {
-    name: 'Matt',
-    desc: 'One sentence. The right one.',
-    voice: `You are Matt. One sentence only. From the archive, real Matt reviews: "Every pull of the slot machine handle brings a mix of beautiful, silly, noisy, heartbreaking creativity." — "I bet a lot of the people who were in my Catholic school choir would really enjoy this album." — "The tight production is like an instrument in itself, setting the table for well crafted songs." One sentence. Vivid. Specific. Done.`
-  },
-  {
-    name: 'Lisa',
-    desc: 'Physical and specific. Music as body experience.',
-    voice: `You are Lisa. One or two sentences. You describe music through what it does to your body. Your actual review: "This album is like a flitting wren delicately whispering into my ear, tickling the little hairs of my body, but then I just want it to stop cuz it's like a BIRD flying right by my head!" That specific. That physical.`
-  },
-];
 
 // ── PLACEHOLDER POOL ────────────────────────────────────────────────────────
 const PLACEHOLDERS = [
@@ -342,19 +227,8 @@ function rotatePlaceholder() {
   document.getElementById('q').placeholder = PLACEHOLDERS[placeholderIndex];
 }
 
-function shuffleReviewer() {
-  const others = REVIEWERS.filter(r => r.name !== currentReviewer?.name);
-  currentReviewer = others[Math.floor(Math.random() * others.length)];
-  document.getElementById('robotName').textContent = currentReviewer.name;
-  document.getElementById('robotDesc').textContent = currentReviewer.desc;
-}
-
-// ── BOOT ────────────────────────────────────────────────────────────────────
 async function init() {
   // Pick random reviewer
-  currentReviewer = REVIEWERS[Math.floor(Math.random() * REVIEWERS.length)];
-  document.getElementById('robotName').textContent = currentReviewer.name;
-  document.getElementById('robotDesc').textContent = currentReviewer.desc;
 
   // Set first placeholder
   document.getElementById('q').placeholder = PLACEHOLDERS[placeholderIndex];
@@ -398,44 +272,11 @@ async function ask() {
   const lMsg = document.getElementById('loadingMsg');
 
   btn.disabled = true;
-  lMsg.textContent = `Consulting ${currentReviewer.name}…`;
+  lMsg.textContent = `Searching the archive…`;
   load.classList.add('visible');
   box.classList.remove('visible');
 
-  // Reviewer-specific error messages for rate limits
-  const rateLimitErrors = {
-    'b': 'the archive is catching its breath — try again in a minute.',
-    'Jt': 'it\'s like when my wifi dies during the fourth quarter. give it a minute.',
-    'chres': 'a jar of honey left in the sun.',
-    'Tom': 'too many questions. wait.',
-    'Lola': 'even the archive needs a moment — come back in a minute.',
-    'Aaron': 'we\'re moving too fast — give it 60 seconds and try again!',
-    'Tim': 'the system is briefly overwhelmed. a minute\'s patience.',
-    'Matt': 'full. try again.',
-    'Lisa': 'it\'s like asking too many people to talk at once — just a sec!',
-  };
-  const creditErrors = {
-    'b': 'the machine ran out of money — someone needs to feed it.',
-    'Jt': 'we\'re out of API credits, which is exactly as embarrassing as running out of gas on the highway.',
-    'chres': 'an empty vending machine at 2am.',
-    'Tom': 'out of credits. top it up.',
-    'Lola': 'the lights are on but nobody\'s home — go add some credits.',
-    'Aaron': 'we need to add more credits to keep this going — back soon!',
-    'Tim': 'the system requires funding before it can continue.',
-    'Matt': 'out of juice.',
-    'Lisa': 'it just went quiet, like someone unplugged the speakers!',
-  };
-  const noAnswerErrors = {
-    'b': 'the question dissolved before it could form an answer.',
-    'Jt': 'I got nothing, which happens sometimes. try rephrasing?',
-    'chres': 'fog.',
-    'Tom': 'can\'t help with that one.',
-    'Lola': 'I drew a blank — maybe try asking it a different way?',
-    'Aaron': 'hmm, I couldn\'t find anything on that — try rephrasing!',
-    'Tim': 'insufficient data to answer with confidence.',
-    'Matt': 'nothing.',
-    'Lisa': 'my brain went quiet on that one — try again?',
-  };
+  const simpleErrors = { rateLimit: 'too many questions at once — try again in a minute.', credit: 'out of API credits — add some at console.anthropic.com.', noAnswer: 'nothing came back — try rephrasing.' };
 
   try {
     const res = await fetch('/api/ask', {
@@ -444,15 +285,13 @@ async function ask() {
       body: JSON.stringify({
         question,
         albums: POSTS,
-        reviewerVoice: currentReviewer.voice,
-        reviewerName: currentReviewer.name
+
       })
     });
     const d = await res.json();
 
-    document.getElementById('resultLabel').textContent = `${currentReviewer.name} Says:`;
-    document.getElementById('resultReviewer').textContent = currentReviewer.desc;
-
+    document.getElementById('resultLabel').textContent = 'The Archive Says:';
+    
     // Check if the answer contains an error
     const answer = d.answer || '';
     const name = currentReviewer.name;
@@ -469,9 +308,8 @@ async function ask() {
 
     rotatePlaceholder();
   } catch(e) {
-    document.getElementById('resultLabel').textContent = `${currentReviewer.name} Says:`;
-    document.getElementById('resultReviewer').textContent = currentReviewer.desc;
-    txt.textContent = rateLimitErrors[currentReviewer.name] || 'something went wrong — try again in a minute.';
+    document.getElementById('resultLabel').textContent = 'The Archive Says:';
+        txt.textContent = rateLimitErrors[currentReviewer.name] || 'something went wrong — try again in a minute.';
     box.classList.add('visible');
   }
 

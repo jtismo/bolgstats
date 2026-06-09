@@ -20,7 +20,7 @@ export default async (req) => {
       return new Response(JSON.stringify({ answer: (d.content||[]).map(c=>c.text||'').join('') }), { status: 200, headers: { ...cors, 'Content-Type': 'application/json' } });
     }
 
-    const { question, albums, posts, reviewerVoice, reviewerName } = body;
+    const { question, albums, posts } = body;
     const archive = albums || posts || [];
 
     // ── PRE-CALCULATE STATS ───────────────────────────────────────────────
@@ -67,10 +67,9 @@ Total: ${archive.length} albums, ${archive.reduce((s,a)=>s+(a.reviews||[]).lengt
       return `${a.album}|${a.artist}|${a.year}|${a.genre||''}|${pick}|${reviews}`;
     }).join('\n');
 
-    const rules = `\n\nRULES: 1-3 sentences max. No markdown, no asterisks, no bullets. No setup phrases like "Looking at..." or "Let me...". Answer directly. Use the stats above for number questions, use the archive below for everything else.`;
+    const system = `You are a music analyst for TheBolg, a blog where friends review albums scored out of 10. Answer questions accurately and directly. 1-3 sentences max. No markdown, no asterisks, no bullets. No setup phrases. Just answer.
 
-    const system = (reviewerVoice || 'You are a music analyst for TheBolg, a music blog where friends review albums scored out of 10.')
-      + `\n\n${stats}` + rules;
+${stats}`;
 
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -78,8 +77,14 @@ Total: ${archive.length} albums, ${archive.reduce((s,a)=>s+(a.reviews||[]).lengt
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 150,
-        system,
-        messages: [{ role: 'user', content: `ARCHIVE:\n${context}\n\nQUESTION: ${question}` }]
+        system: [
+          {
+            type: 'text',
+            text: system + `\n\nARCHIVE (${archive.length} albums):\n${context}`,
+            cache_control: { type: 'ephemeral' }
+          }
+        ],
+        messages: [{ role: 'user', content: question }]
       })
     });
 
