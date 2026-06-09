@@ -180,7 +180,7 @@ async function runAll() {
       results[i] = { test: TESTS[i], answer: `Error: ${e.message}`, flags: ['API ERROR'], status: 'fail' };
     }
     renderResults();
-    if (i < TESTS.length - 1) await new Promise(r => setTimeout(r, 1200));
+    if (i < TESTS.length - 1) await new Promise(r => setTimeout(r, 5000));
   }
 
   const pass = results.filter(r=>r.status==='pass').length;
