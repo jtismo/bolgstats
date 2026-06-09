@@ -1,4 +1,3 @@
-
 export default async (req) => {
   const cors = {
     'Access-Control-Allow-Origin': '*',
@@ -25,13 +24,7 @@ export default async (req) => {
     const archive = albums || posts || [];
     const isGrouped = archive.length > 0 && Array.isArray(archive[0].reviews);
 
-    // ── LOG QUERY ─────────────────────────────────────────────────────────
-    try {
-      const store = getStore('queries');
-      await store.setJSON(`q_${Date.now()}_${Math.random().toString(36).slice(2,7)}`, {
-        question, reviewer: reviewerName || 'unknown', timestamp: new Date().toISOString()
-      });
-    } catch(e) { console.warn('Log failed:', e.message); }
+    // logging removed — @netlify/blobs not available on this plan
 
     // ── PRE-CALCULATE STATS ───────────────────────────────────────────────
     const normGenre = g => {
@@ -134,9 +127,11 @@ Total: ${archive.length} albums, ${totalReviews} reviews`;
       }).join('\n');
     }
 
-    const rules = `\n\nRULES: 1-3 sentences max. No markdown, asterisks, bullets, or lists. No setup phrases. Answer directly like texting a friend.`;
+    const rules = `\n\nRULES: 1-3 sentences max. No markdown, asterisks, bullets. No setup phrases. Answer directly like texting a friend.`;
+
+    const statsBlock = isFactual ? `\n\n${stats}` : '';
     const system = (reviewerVoice || 'You are a music analyst for TheBolg, a music blog where friends review albums scored out of 10.')
-      + `\n\n${stats}` + rules;
+      + statsBlock + rules;
 
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
