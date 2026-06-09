@@ -60,9 +60,17 @@ export default async (req) => {
     const genreScores = {}, genreCounts = {};
     let highestAlbum = null, lowestAlbum = null;
 
+    const genreNorm = g => g.trim()
+      .replace(/^hiphop$/i, 'Hip Hop')
+      .replace(/^hip-hop$/i, 'Hip Hop')
+      .replace(/^r&b\/soul$/i, 'R&B')
+      .replace(/^indie$/i, 'Indie')
+      .toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+
     archive.forEach(a => {
       if (a.genre) {
-        if (!genreScores[a.genre]) { genreScores[a.genre] = 0; genreCounts[a.genre] = 0; }
+        const g = genreNorm(a.genre);
+        if (!genreScores[g]) { genreScores[g] = 0; genreCounts[g] = 0; }
       }
       (a.reviews||[]).forEach(r => {
         if (r.score == null) return;
@@ -75,8 +83,9 @@ export default async (req) => {
           pickCounts[a.pick]++;
         }
         if (a.genre) {
-          genreScores[a.genre] += r.score;
-          genreCounts[a.genre]++;
+          const g = genreNorm(a.genre);
+          genreScores[g] += r.score;
+          genreCounts[g]++;
         }
       });
       if (a.avgScore && (a.reviews||[]).length >= 2) {
@@ -94,7 +103,7 @@ export default async (req) => {
       .sort((a,b) => b.avg - a.avg);
 
     const genreAvgs = Object.entries(genreScores)
-      .filter(([g]) => genreCounts[g] >= 3)
+      .filter(([g]) => genreCounts[g] >= 2)
       .map(([g,t]) => ({ genre: g, avg: (t/genreCounts[g]).toFixed(2), count: genreCounts[g] }))
       .sort((a,b) => b.avg - a.avg);
 
@@ -118,7 +127,7 @@ Total: ${archive.length} albums, ${archive.reduce((s,a)=>s+(a.reviews||[]).lengt
 
     // ── CLASSIFY QUESTION TYPE ────────────────────────────────────────────
     const q = (question||'').toLowerCase();
-    const isFactual = /\b(highest|lowest|most|least|average|avg|how many|total|count|best rated|worst rated|top|bottom|ranking|who gives|who scores|what score|what rating|which genre|picks have)\b/.test(q);
+    const isFactual = /\b(highest|lowest|most|least|average|avg|how many|total|count|best rated|worst rated|top|bottom|ranking|who gives|who scores|what score|what rating|which genre|picks have|what genre|genre gets|genre has|genre score)\b/.test(q);
     const mentionsReviewer = /\b(b|jt|chres|tom|tyler|lola|aaron|tim|matt|lisa|mike)\b/.test(q);
     const mentionsAlbum = archive.some(a =>
       a.album && q.includes(a.album.toLowerCase().slice(0, 10))
