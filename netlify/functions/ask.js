@@ -53,7 +53,7 @@ export default async (req) => {
           return `${r.reviewer}|${r.score??'?'}|${r.album}|${r.artist}|${(r.text||'')}`;
         }).join('\n');
 
-    const antiAI = `\n\nCRITICAL RULES: Write exactly as this person would speak. No markdown. No asterisks. No bullet points. No blockquotes. No "Looking through..." or "Let me find..." or any AI-style hedging. No labels like "Close second:" or "Winner:". Just talk. Short sentences. One paragraph. Sound like a person texting their friend about music, not an AI writing a report.`;
+    const antiAI = `\n\nRULES — THESE OVERRIDE EVERYTHING: Answer in 1-3 sentences max. No markdown. No asterisks. No bullet points. No lists. No "Let me..." or "Looking through..." or "From what I can see..." or any setup phrases. No bold text. No line breaks between thoughts. Just answer directly like you're texting a friend. If you can't fit it in 3 sentences, pick the most interesting part and say only that.`;
 
     const system = reviewerVoice
       ? reviewerVoice + `\n\nArchive format: album|artist|year|genre|[picker]|avgScore|reviewer:score:fullReviewText;...` + antiAI
@@ -68,7 +68,7 @@ export default async (req) => {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 600,
+        max_tokens: 120,
         system,
         messages: [{ role: 'user', content: `ARCHIVE (${archive.length} albums):\n${context}\n\nQUESTION: ${question}` }]
       })
