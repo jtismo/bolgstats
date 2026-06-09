@@ -1,3 +1,5 @@
+import { getStore } from "@netlify/blobs";
+
 export default async (req) => {
   const cors = {
     'Access-Control-Allow-Origin': '*',
@@ -35,101 +37,139 @@ export default async (req) => {
       });
     }
 
-    // Normal search mode
-    const { question, albums, posts, reviewerVoice } = body;
+    const { question, albums, posts, reviewerVoice, reviewerName } = body;
     const archive = albums || posts || [];
     const isGrouped = archive.length > 0 && Array.isArray(archive[0].reviews);
 
-    // Pre-calculate key stats so Claude doesn't have to guess
-    let stats = '';
-    if (isGrouped) {
-      // Reviewer avg scores
-      const reviewerScores = {};
-      const reviewerCounts = {};
-      archive.forEach(a => {
-        (a.reviews||[]).forEach(r => {
-          if (r.score == null) return;
-          if (!reviewerScores[r.reviewer]) { reviewerScores[r.reviewer] = 0; reviewerCounts[r.reviewer] = 0; }
-          reviewerScores[r.reviewer] += r.score;
-          reviewerCounts[r.reviewer]++;
-        });
+    // ── LOG QUERY ─────────────────────────────────────────────────────────
+    try {
+      const store = getStore('queries');
+      const key = `q_${Date.now()}_${Math.random().toString(36).slice(2,7)}`;
+      await store.setJSON(key, {
+        question,
+        reviewer: reviewerName || 'unknown',
+        timestamp: new Date().toISOString(),
       });
-      const reviewerAvgs = Object.entries(reviewerScores)
-        .map(([name, total]) => ({ name, avg: (total/reviewerCounts[name]).toFixed(2), count: reviewerCounts[name] }))
-        .sort((a,b) => b.avg - a.avg);
+    } catch(e) {
+      console.warn('Query log failed:', e.message);
+    }
 
-      // Pick avg scores
-      const pickScores = {};
-      const pickCounts = {};
-      archive.forEach(a => {
-        if (!a.pick) return;
-        (a.reviews||[]).forEach(r => {
-          if (r.score == null) return;
+    // ── PRE-CALCULATE STATS ───────────────────────────────────────────────
+    const reviewerScores = {}, reviewerCounts = {};
+    const pickScores = {}, pickCounts = {};
+    const genreScores = {}, genreCounts = {};
+    let highestAlbum = null, lowestAlbum = null;
+
+    archive.forEach(a => {
+      if (a.genre) {
+        if (!genreScores[a.genre]) { genreScores[a.genre] = 0; genreCounts[a.genre] = 0; }
+      }
+      (a.reviews||[]).forEach(r => {
+        if (r.score == null) return;
+        if (!reviewerScores[r.reviewer]) { reviewerScores[r.reviewer] = 0; reviewerCounts[r.reviewer] = 0; }
+        reviewerScores[r.reviewer] += r.score;
+        reviewerCounts[r.reviewer]++;
+        if (a.pick) {
           if (!pickScores[a.pick]) { pickScores[a.pick] = 0; pickCounts[a.pick] = 0; }
           pickScores[a.pick] += r.score;
           pickCounts[a.pick]++;
-        });
+        }
+        if (a.genre) {
+          genreScores[a.genre] += r.score;
+          genreCounts[a.genre]++;
+        }
       });
-      const pickAvgs = Object.entries(pickScores)
-        .map(([name, total]) => ({ name, avg: (total/pickCounts[name]).toFixed(2), count: pickCounts[name] }))
-        .sort((a,b) => b.avg - a.avg);
+      if (a.avgScore && (a.reviews||[]).length >= 2) {
+        if (!highestAlbum || a.avgScore > highestAlbum.avgScore) highestAlbum = a;
+        if (!lowestAlbum || a.avgScore < lowestAlbum.avgScore) lowestAlbum = a;
+      }
+    });
 
-      // Picker's own scores on their own picks
-      const selfPickScores = {};
-      const selfPickCounts = {};
-      archive.forEach(a => {
-        if (!a.pick) return;
-        (a.reviews||[]).forEach(r => {
-          if (r.reviewer !== a.pick || r.score == null) return;
-          if (!selfPickScores[a.pick]) { selfPickScores[a.pick] = 0; selfPickCounts[a.pick] = 0; }
-          selfPickScores[a.pick] += r.score;
-          selfPickCounts[a.pick]++;
-        });
-      });
+    const reviewerAvgs = Object.entries(reviewerScores)
+      .map(([n,t]) => ({ name: n, avg: (t/reviewerCounts[n]).toFixed(2), count: reviewerCounts[n] }))
+      .sort((a,b) => b.avg - a.avg);
 
-      // Top albums
-      const topAlbums = [...archive]
-        .filter(a => a.avgScore)
-        .sort((a,b) => b.avgScore - a.avgScore)
-        .slice(0,5)
-        .map(a => `${a.album} by ${a.artist} (${a.avgScore})`);
+    const pickAvgs = Object.entries(pickScores)
+      .map(([n,t]) => ({ name: n, avg: (t/pickCounts[n]).toFixed(2), picks: pickCounts[n] }))
+      .sort((a,b) => b.avg - a.avg);
 
-      // Bottom albums  
-      const bottomAlbums = [...archive]
-        .filter(a => a.avgScore && (a.reviews||[]).length >= 2)
-        .sort((a,b) => a.avgScore - b.avgScore)
-        .slice(0,5)
-        .map(a => `${a.album} by ${a.artist} (${a.avgScore})`);
+    const genreAvgs = Object.entries(genreScores)
+      .filter(([g]) => genreCounts[g] >= 3)
+      .map(([g,t]) => ({ genre: g, avg: (t/genreCounts[g]).toFixed(2), count: genreCounts[g] }))
+      .sort((a,b) => b.avg - a.avg);
 
-      stats = `
-PRE-CALCULATED STATS (these are exact — use them):
+    const topAlbums = [...archive]
+      .filter(a => a.avgScore && (a.reviews||[]).length >= 2)
+      .sort((a,b) => b.avgScore - a.avgScore).slice(0,10)
+      .map(a => `${a.album} by ${a.artist} (${a.avgScore}, ${a.year})`);
+
+    const bottomAlbums = [...archive]
+      .filter(a => a.avgScore && (a.reviews||[]).length >= 2)
+      .sort((a,b) => a.avgScore - b.avgScore).slice(0,5)
+      .map(a => `${a.album} by ${a.artist} (${a.avgScore}, ${a.year})`);
+
+    const stats = `PRE-CALCULATED STATS (exact numbers — always use these for factual questions):
 Reviewer avg scores: ${reviewerAvgs.map(r=>`${r.name}: ${r.avg} (${r.count} reviews)`).join(', ')}
-Pick avg scores (all reviews on their picks): ${pickAvgs.map(p=>`${p.name}: ${p.avg} (${p.count} reviews on ${pickCounts[p.name]} picks)`).join(', ')}
-Top 5 albums by avg score: ${topAlbums.join(', ')}
-Bottom 5 albums by avg score: ${bottomAlbums.join(', ')}
-Total albums: ${archive.length}, Total reviews: ${archive.reduce((s,a)=>s+(a.reviews||[]).length,0)}
-`;
+Pick avg scores (avg of all reviews on their picks): ${pickAvgs.map(p=>`${p.name}: ${p.avg} (${p.picks} picks)`).join(', ')}
+Genre avg scores: ${genreAvgs.map(g=>`${g.genre}: ${g.avg}`).join(', ')}
+Top 10 albums by avg: ${topAlbums.join(' | ')}
+Bottom 5 albums by avg: ${bottomAlbums.join(' | ')}
+Total: ${archive.length} albums, ${archive.reduce((s,a)=>s+(a.reviews||[]).length,0)} reviews`;
+
+    // ── CLASSIFY QUESTION TYPE ────────────────────────────────────────────
+    const q = (question||'').toLowerCase();
+    const isFactual = /\b(highest|lowest|most|least|average|avg|how many|total|count|best rated|worst rated|top|bottom|ranking|who gives|who scores|what score|what rating|which genre|picks have)\b/.test(q);
+    const mentionsReviewer = /\b(b|jt|chres|tom|tyler|lola|aaron|tim|matt|lisa|mike)\b/.test(q);
+    const mentionsAlbum = archive.some(a =>
+      a.album && q.includes(a.album.toLowerCase().slice(0, 10))
+    );
+
+    let context = '';
+
+    if (isFactual && !mentionsAlbum) {
+      // Factual question — stats are enough, send minimal context
+      context = `(Full review text omitted — use pre-calculated stats above to answer)`;
+    } else if (mentionsAlbum) {
+      // Question about a specific album — find it and send full text
+      const relevant = archive.filter(a =>
+        a.album && q.includes(a.album.toLowerCase().slice(0,10))
+      );
+      context = relevant.map(a => {
+        const pick = a.pick ? `[${a.pick}pick]` : '';
+        const reviews = (a.reviews||[]).map(r =>
+          `${r.reviewer}:${r.score??'?'}:${r.text||''}`
+        ).join('\n');
+        return `${a.album} by ${a.artist} (${a.year}) ${pick}\n${reviews}`;
+      }).join('\n\n');
+    } else if (mentionsReviewer) {
+      // Question about a specific reviewer — send all their reviews with full text
+      const revName = ['b','Jt','chres','Tom','Tyler','Lola','Aaron','Tim','Matt','Lisa','Mike']
+        .find(r => q.includes(r.toLowerCase()));
+      const relevant = archive.filter(a =>
+        (a.reviews||[]).some(r => r.reviewer === revName && r.text)
+      );
+      context = relevant.map(a => {
+        const rev = (a.reviews||[]).find(r => r.reviewer === revName);
+        return `${a.album}|${a.artist}|${a.year}|${rev.reviewer}:${rev.score??'?'}:${rev.text||''}`;
+      }).join('\n');
+    } else {
+      // Qualitative question — send all albums with full text
+      context = archive.map(a => {
+        const pick = a.pick ? `[${a.pick}pick]` : '';
+        const reviews = (a.reviews||[]).map(r =>
+          r.text
+            ? `${r.reviewer}:${r.score??'?'}:${r.text}`
+            : `${r.reviewer}:${r.score??'?'}`
+        ).join(';');
+        return `${a.album}|${a.artist}|${a.year}|${a.genre||''}|${pick}|${reviews}`;
+      }).join('\n');
     }
 
-    // Build compact archive context
-    const context = isGrouped
-      ? archive.map(a => {
-          const pick = a.pick ? `[${a.pick}pick]` : '';
-          const reviews = (a.reviews||[]).map(r => {
-            const text = (r.text||'').replace(/\|/g,' ');
-            return `${r.reviewer}:${r.score??'?'}:${text}`;
-          }).join(';');
-          return `${a.album}|${a.artist}|${a.year}|${a.genre||''}|${pick}|avg:${a.avgScore??'?'}|${reviews}`;
-        }).join('\n')
-      : archive.map(r =>
-          `${r.reviewer}|${r.score??'?'}|${r.album}|${r.artist}|${r.text||''}`
-        ).join('\n');
-
-    const rules = `\n\nRULES: 1-3 sentences max. No markdown, asterisks, bullets, or lists. No "Looking at..." or "Let me..." setup phrases. State the answer directly like you're texting a friend. The pre-calculated stats above are accurate — use them for any factual question.`;
+    const rules = `\n\nRULES: 1-3 sentences max. No markdown, asterisks, bullets, or lists. No setup phrases like "Looking at..." or "Let me...". State the answer directly. Use pre-calculated stats for factual questions.`;
 
     const system = reviewerVoice
-      ? reviewerVoice + `\n\nArchive format: album|artist|year|genre|[picker]|avgScore|reviewer:score:text;...\n${stats}` + rules
-      : `You are a music analyst for TheBolg. Archive format: album|artist|year|genre|[picker]|avgScore|reviewer:score:text;...\n${stats}` + rules;
+      ? reviewerVoice + `\n\nArchive format: album|artist|year|genre|[picker]|reviewer:score:text;...\n\n${stats}` + rules
+      : `You are a music analyst for TheBolg, a music blog where friends review albums with scores out of 10.\n\n${stats}` + rules;
 
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -142,7 +182,7 @@ Total albums: ${archive.length}, Total reviews: ${archive.reduce((s,a)=>s+(a.rev
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 150,
         system,
-        messages: [{ role: 'user', content: `ARCHIVE (${archive.length} albums):\n${context}\n\nQUESTION: ${question}` }]
+        messages: [{ role: 'user', content: `ARCHIVE:\n${context}\n\nQUESTION: ${question}` }]
       })
     });
 
@@ -154,6 +194,7 @@ Total albums: ${archive.length}, Total reviews: ${archive.reduce((s,a)=>s+(a.rev
       status: 200,
       headers: { ...cors, 'Content-Type': 'application/json' }
     });
+
   } catch(err) {
     return new Response(JSON.stringify({ answer: `Error: ${err.message}` }), {
       status: 200,
