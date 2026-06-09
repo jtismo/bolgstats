@@ -402,6 +402,41 @@ async function ask() {
   load.classList.add('visible');
   box.classList.remove('visible');
 
+  // Reviewer-specific error messages for rate limits
+  const rateLimitErrors = {
+    'b': 'the archive is catching its breath — try again in a minute.',
+    'Jt': 'it\'s like when my wifi dies during the fourth quarter. give it a minute.',
+    'chres': 'a jar of honey left in the sun.',
+    'Tom': 'too many questions. wait.',
+    'Lola': 'even the archive needs a moment — come back in a minute.',
+    'Aaron': 'we\'re moving too fast — give it 60 seconds and try again!',
+    'Tim': 'the system is briefly overwhelmed. a minute\'s patience.',
+    'Matt': 'full. try again.',
+    'Lisa': 'it\'s like asking too many people to talk at once — just a sec!',
+  };
+  const creditErrors = {
+    'b': 'the machine ran out of money — someone needs to feed it.',
+    'Jt': 'we\'re out of API credits, which is exactly as embarrassing as running out of gas on the highway.',
+    'chres': 'an empty vending machine at 2am.',
+    'Tom': 'out of credits. top it up.',
+    'Lola': 'the lights are on but nobody\'s home — go add some credits.',
+    'Aaron': 'we need to add more credits to keep this going — back soon!',
+    'Tim': 'the system requires funding before it can continue.',
+    'Matt': 'out of juice.',
+    'Lisa': 'it just went quiet, like someone unplugged the speakers!',
+  };
+  const noAnswerErrors = {
+    'b': 'the question dissolved before it could form an answer.',
+    'Jt': 'I got nothing, which happens sometimes. try rephrasing?',
+    'chres': 'fog.',
+    'Tom': 'can\'t help with that one.',
+    'Lola': 'I drew a blank — maybe try asking it a different way?',
+    'Aaron': 'hmm, I couldn\'t find anything on that — try rephrasing!',
+    'Tim': 'insufficient data to answer with confidence.',
+    'Matt': 'nothing.',
+    'Lisa': 'my brain went quiet on that one — try again?',
+  };
+
   try {
     const res = await fetch('/api/ask', {
       method: 'POST',
@@ -417,13 +452,26 @@ async function ask() {
 
     document.getElementById('resultLabel').textContent = `${currentReviewer.name} Says:`;
     document.getElementById('resultReviewer').textContent = currentReviewer.desc;
-    txt.textContent = d.answer || 'No answer found.';
+
+    // Check if the answer contains an error
+    const answer = d.answer || '';
+    const name = currentReviewer.name;
+    if (answer.includes('credit balance') || answer.includes('too low')) {
+      txt.textContent = creditErrors[name] || 'out of API credits.';
+    } else if (answer.includes('rate limit') || answer.includes('50,000')) {
+      txt.textContent = rateLimitErrors[name] || 'try again in a minute.';
+    } else if (!answer || answer === 'No answer found.') {
+      txt.textContent = noAnswerErrors[name] || 'no answer found — try rephrasing.';
+    } else {
+      txt.textContent = answer;
+    }
     box.classList.add('visible');
 
-    // Rotate placeholder after each search but keep the question visible
     rotatePlaceholder();
   } catch(e) {
-    txt.textContent = `Error: ${e.message}`;
+    document.getElementById('resultLabel').textContent = `${currentReviewer.name} Says:`;
+    document.getElementById('resultReviewer').textContent = currentReviewer.desc;
+    txt.textContent = rateLimitErrors[currentReviewer.name] || 'something went wrong — try again in a minute.';
     box.classList.add('visible');
   }
 
