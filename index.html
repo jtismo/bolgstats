@@ -113,7 +113,7 @@
     color: #333;
     overflow: hidden;
     display: -webkit-box;
-    -webkit-line-clamp: 3;
+    -webkit-line-clamp: 4;
     -webkit-box-orient: vertical;
   }
   .archive-quote-attr {
@@ -211,13 +211,24 @@ const PLACEHOLDERS = [
   'What\'s the best reviewed hip-hop record?',
   'Which reviewer is the harshest?',
   'What\'s the highest rated album ever?',
-  'Who reviews the most dance music?',
   'What\'s the funniest review in the archive?',
   'Which albums got a perfect 10?',
   'Who has the most eclectic taste?',
   'What\'s the worst reviewed album?',
-  'Which reviewer changed their mind the most?',
   'What genre gets the highest scores on average?',
+  'What did chres say about Beyoncé?',
+  'What\'s the most poetic review in the archive?',
+  'Which reviewer writes the weirdest reviews?',
+  'What did b say about Prince?',
+  'Who sounds most enthusiastic in their reviews?',
+  'What\'s the driest, most deadpan review?',
+  'Which reviewer ties music to their personal life the most?',
+  'What did Tom say about something he hated?',
+  'Who writes the shortest reviews?',
+  'What\'s the most physical description of an album?',
+  'Which reviewer is the most literary?',
+  'What\'s Jt\'s most self-deprecating review?',
+  'Who has the strongest opinions about hip hop?',
 ];
 
 let placeholderIndex = Math.floor(Math.random() * PLACEHOLDERS.length);
@@ -276,6 +287,20 @@ async function ask() {
   load.classList.add('visible');
   box.classList.remove('visible');
 
+  // Rotate loading messages so it doesn't feel stuck
+  const loadingMsgs = [
+    'Searching the archive…',
+    'Digging through 1,500 reviews…',
+    'Consulting the data…',
+    'Cross-referencing scores…',
+    'Almost there…',
+  ];
+  let msgIdx = 0;
+  const msgTimer = setInterval(() => {
+    msgIdx = (msgIdx + 1) % loadingMsgs.length;
+    lMsg.textContent = loadingMsgs[msgIdx];
+  }, 2000);
+
   const simpleErrors = { rateLimit: 'too many questions at once — try again in a minute.', credit: 'out of API credits — add some at console.anthropic.com.', noAnswer: 'nothing came back — try rephrasing.' };
 
   try {
@@ -294,13 +319,12 @@ async function ask() {
     
     // Check if the answer contains an error
     const answer = d.answer || '';
-    const name = currentReviewer.name;
     if (answer.includes('credit balance') || answer.includes('too low')) {
-      txt.textContent = `${creditErrors[name] || 'out of API credits.'} (billing error — add credits at console.anthropic.com)`;
+      txt.textContent = simpleErrors.credit + ' (billing error)';
     } else if (answer.includes('rate limit') || answer.includes('50,000')) {
-      txt.textContent = `${rateLimitErrors[name] || 'try again in a minute.'} (rate limit — wait 60 seconds)`;
+      txt.textContent = simpleErrors.rateLimit + ' (rate limit — wait 60 seconds)';
     } else if (!answer || answer === 'No answer found.') {
-      txt.textContent = `${noAnswerErrors[name] || 'no answer found — try rephrasing.'} (no result)`;
+      txt.textContent = simpleErrors.noAnswer + ' (no result)';
     } else {
       txt.textContent = answer;
     }
@@ -309,11 +333,12 @@ async function ask() {
     rotatePlaceholder();
   } catch(e) {
     document.getElementById('resultLabel').textContent = 'The Archive Says:';
-        txt.textContent = rateLimitErrors[currentReviewer.name] || 'something went wrong — try again in a minute.';
+    txt.textContent = simpleErrors.rateLimit;
     box.classList.add('visible');
   }
 
   btn.disabled = false;
+  clearInterval(msgTimer);
   load.classList.remove('visible');
 }
 
@@ -344,7 +369,7 @@ function startQuoteCycle() {
   const byYear = {};
   POSTS.forEach(a => {
     (a.reviews||[]).forEach(r => {
-      if (!r.text || r.text.length < 30 || r.text.length > 220) return;
+      if (!r.text || r.text.length < 30 || r.text.length > 400) return;
       const y = a.year;
       if (!byYear[y]) byYear[y] = [];
       byYear[y].push({ text: r.text, reviewer: r.reviewer, score: r.score, album: a.album, artist: a.artist, year: y, url: a.tumblrUrl || null });
@@ -375,9 +400,12 @@ function startQuoteCycle() {
       const score = q.score != null ? ` · ${q.score}` : '';
       const yearsAgo = q.actualYearsAgo;
       const label = yearsAgo === 1 ? '1 year ago today' : `${yearsAgo} years ago today`;
+      const albumCredit = q.album && q.artist ? `${q.album} by ${q.artist}`
+        : q.artist ? q.artist
+        : q.album || '';
       document.getElementById('archiveQuoteLabel').textContent = label;
       textEl.textContent = `"${q.text}"`;
-      attrEl.textContent = `— ${q.reviewer}${score} on ${q.album} by ${q.artist}`;
+      attrEl.textContent = `— ${q.reviewer}${score} on ${albumCredit}`;
       if (q.url) document.getElementById('archiveQuote').href = q.url;
       inner.classList.remove('hidden');
     }, 650);
